@@ -1,6 +1,7 @@
-import { memo } from "react";
+import { memo, useMemo } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { usePlanetStore } from "../../hooks/usePlanetStore.js";
+import { getTextureFailures } from "../../utils/textureUtils.js";
 
 /**
  * About & Credits modal.
@@ -11,6 +12,7 @@ import { usePlanetStore } from "../../hooks/usePlanetStore.js";
 function AboutModal() {
   const aboutOpen = usePlanetStore((s) => s.aboutOpen);
   const setAboutOpen = usePlanetStore((s) => s.setAboutOpen);
+  const failures = useMemo(() => getTextureFailures(), [aboutOpen]);
 
   return (
     <AnimatePresence>
@@ -87,6 +89,24 @@ function AboutModal() {
                   .
                 </p>
               </div>
+
+              {/* Degraded Asset Status (if any textures failed) */}
+              {failures.length > 0 ? (
+                <div className="p-3 rounded-xl bg-solar-500/10 border border-solar-400/20 text-solar-300">
+                  <h4 className="label-caps text-solar-400 mb-1 text-[10px]">
+                    Degraded Asset Notice
+                  </h4>
+                  <p className="text-[11px] leading-relaxed text-ink-300">
+                    {failures.length} texture asset(s) could not be loaded and have
+                    degraded to procedural fallback materials without disrupting the simulation:
+                  </p>
+                  <ul className="mt-1.5 space-y-0.5 text-[10px] font-mono text-solar-300/80">
+                    {failures.map((url, i) => (
+                      <li key={i}>• {url}</li>
+                    ))}
+                  </ul>
+                </div>
+              ) : null}
 
               {/* Controls guide */}
               <div>

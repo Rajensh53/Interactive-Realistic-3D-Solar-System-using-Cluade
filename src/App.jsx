@@ -1,5 +1,6 @@
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { Canvas } from "@react-three/fiber";
+import { AdaptiveDpr } from "@react-three/drei";
 import PostProcessingEffects from "./components/three/PostProcessingEffects.jsx";
 import * as THREE from "three";
 
@@ -15,12 +16,14 @@ import AboutModal from "./components/ui/AboutModal.jsx";
 import {
   isWebGLAvailable,
   WebGLUnavailable,
+  SceneErrorBoundary,
 } from "./components/ui/ErrorFallback.jsx";
 import { SCENE } from "./utils/planetUtils.js";
 import { preloadTextures } from "./utils/textureUtils.js";
 import { installDevBridge } from "./utils/devBridge.js";
 import { usePlanetStore } from "./hooks/usePlanetStore.js";
 import { useAudioEngine } from "./hooks/useAudioEngine.js";
+import { QualityMonitor, TIER_CONFIG } from "./hooks/useQualityTier.js";
 import { getAdjacentPlanetId } from "./data/planets.js";
 
 const { OVERVIEW_CAMERA } = SCENE;
@@ -38,6 +41,8 @@ export default function App() {
   useAudioEngine();
 
   const [assetsReady, setAssetsReady] = useState(false);
+  const qualityTier = usePlanetStore((s) => s.qualityTier) || "high";
+  const tierConfig = TIER_CONFIG[qualityTier] || TIER_CONFIG.high;
 
   const handleReady = useCallback(() => {
     setAssetsReady(true);
@@ -80,36 +85,41 @@ export default function App() {
 
   return (
     <main className="relative h-full w-full overflow-hidden bg-space-950 select-none">
-      <Canvas
-        dpr={[1, 2]}
-        camera={{
-          position: [OVERVIEW_CAMERA.x, OVERVIEW_CAMERA.y, OVERVIEW_CAMERA.z],
-          fov: 60,
-          near: 0.1,
-          far: 1400,
-        }}
-        gl={{
-          antialias: true,
-          powerPreference: "high-performance",
-          toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.0,
-        }}
-        onPointerMissed={() => {
-          usePlanetStore.getState().clearSelection();
-        }}
-      >
-        <color attach="background" args={["#03040a"]} />
+      <SceneErrorBoundary>
+        <Canvas
+          dpr={tierConfig.dpr}
+          camera={{
+            position: [OVERVIEW_CAMERA.x, OVERVIEW_CAMERA.y, OVERVIEW_CAMERA.z],
+            fov: 60,
+            near: 0.1,
+            far: 1400,
+          }}
+          gl={{
+            antialias: true,
+            powerPreference: "high-performance",
+            toneMapping: THREE.ACESFilmicToneMapping,
+            toneMappingExposure: 1.0,
+          }}
+          onPointerMissed={() => {
+            usePlanetStore.getState().clearSelection();
+          }}
+        >
+          <color attach="background" args={["#03040a"]} />
 
-        <Suspense fallback={null}>
-          <SolarSystem onReady={handleReady} />
-        </Suspense>
+          <AdaptiveDpr pixelated={false} />
+          <QualityMonitor />
 
-        <CameraController />
+          <Suspense fallback={null}>
+            <SolarSystem onReady={handleReady} />
+          </Suspense>
 
-        {import.meta.env.DEV ? <DevProbe /> : null}
+          <CameraController />
 
-        <PostProcessingEffects />
-      </Canvas>
+          {import.meta.env.DEV ? <DevProbe /> : null}
+
+          <PostProcessingEffects />
+        </Canvas>
+      </SceneErrorBoundary>
 
       {/* UI Overlay Layer */}
       <LoadingScreen ready={assetsReady} />

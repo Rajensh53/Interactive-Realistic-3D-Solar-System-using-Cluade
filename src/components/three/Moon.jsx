@@ -9,7 +9,6 @@ import {
 } from "../../utils/planetUtils.js";
 import { getTexture } from "../../utils/textureUtils.js";
 import { usePlanetStore } from "../../hooks/usePlanetStore.js";
-import SelectionRing from "./SelectionRing.jsx";
 import PlanetLabel from "./PlanetLabel.jsx";
 
 /**
@@ -135,9 +134,6 @@ function Moon({ moon }) {
             />
           </mesh>
         ) : null}
-
-        {/* Selection indicator ring */}
-        <SelectionRing bodyId={moon.id} radius={moon.radius} />
 
         {/* Floating 3D label badge */}
         <PlanetLabel body={moon} yOffset={moon.radius + 0.65} />

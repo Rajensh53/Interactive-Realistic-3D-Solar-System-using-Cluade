@@ -7,8 +7,9 @@ import {
 } from "./planetUtils.js";
 import { PLANETS, BODIES } from "../data/planets.js";
 import { MOONS } from "../data/moons.js";
-import { getTextureFailures, textureStatus } from "./textureUtils.js";
+import { getTextureFailures, textureStatus, setAnisotropy } from "./textureUtils.js";
 import { usePlanetStore } from "../hooks/usePlanetStore.js";
+import { TIER_CONFIG } from "../hooks/useQualityTier.js";
 
 /**
  * Dev-only diagnostics handle, exposed as `window.__solar`.
@@ -235,6 +236,18 @@ export function installDevBridge() {
     resetView() {
       usePlanetStore.getState().clearSelection();
       return "returning to overview";
+    },
+
+    setTier(tier) {
+      if (!TIER_CONFIG[tier]) return `Unknown tier: ${tier}. Use 'high' | 'medium' | 'low'`;
+      usePlanetStore.getState().setQualityTier(tier);
+      setAnisotropy(TIER_CONFIG[tier].anisotropy);
+      return { tier, config: TIER_CONFIG[tier] };
+    },
+
+    getTier() {
+      const tier = usePlanetStore.getState().qualityTier;
+      return { tier, config: TIER_CONFIG[tier] };
     },
 
     bodyCount: BODIES.length,

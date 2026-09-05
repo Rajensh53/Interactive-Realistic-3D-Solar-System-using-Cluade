@@ -348,7 +348,7 @@ function DeepSpaceGalaxies() {
 /**
  * Main Space Environment Orchestrator
  */
-function SpaceEnvironment() {
+function SpaceEnvironment({ dustCount = 2000, nebulaShells = 2 }) {
   return (
     <group>
       {/* Deep Violet & Magenta Nebula Shell */}
@@ -361,18 +361,20 @@ function SpaceEnvironment() {
         rotationSpeed={0.00012}
       />
 
-      {/* Electric Cyan & Deep Indigo Nebula Shell */}
-      <ProceduralNebulaShell
-        radius={860}
-        colorA="#061833"
-        colorB="#064a5c"
-        opacity={0.055}
-        scale={0.0028}
-        rotationSpeed={-0.00009}
-      />
+      {/* Electric Cyan & Deep Indigo Nebula Shell (High/Medium tiers) */}
+      {nebulaShells >= 2 ? (
+        <ProceduralNebulaShell
+          radius={860}
+          colorA="#061833"
+          colorB="#064a5c"
+          opacity={0.055}
+          scale={0.0028}
+          rotationSpeed={-0.00009}
+        />
+      ) : null}
 
       {/* Interplanetary Cosmic Dust Field */}
-      <CosmicDust count={2000} />
+      <CosmicDust count={dustCount} />
 
       {/* Deep Space Galaxies */}
       <DeepSpaceGalaxies />

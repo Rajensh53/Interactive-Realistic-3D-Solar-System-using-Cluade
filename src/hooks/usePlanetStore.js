@@ -112,5 +112,10 @@ export const usePlanetStore = create((set) => ({
   aboutOpen: false,
 
   setAboutOpen: (aboutOpen) => set({ aboutOpen }),
+
+  /** Quality tier for performance adaptation: 'high' | 'medium' | 'low'. */
+  qualityTier: "high",
+
+  setQualityTier: (qualityTier) => set({ qualityTier }),
 }));
 

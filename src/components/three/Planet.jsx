@@ -7,7 +7,6 @@ import MoonOrbit from "./MoonOrbit.jsx";
 import Rings from "./Rings.jsx";
 import CloudLayer from "./CloudLayer.jsx";
 import Atmosphere from "./Atmosphere.jsx";
-import SelectionRing from "./SelectionRing.jsx";
 import PlanetLabel from "./PlanetLabel.jsx";
 import { getMoonsFor } from "../../data/moons.js";
 import { usePlanetMaterial, useSunDirection } from "../../hooks/usePlanetMaterial.js";
@@ -40,7 +39,6 @@ const _pos = { x: 0, y: 0, z: 0 };
  *     <Atmosphere />              a rim glow is view-dependent, not surface-
  *                                 bound, so tilt and spin are irrelevant to it
  *     <mesh hoverGlow />          windowed Fresnel outline shell, fades on hover
- *     <SelectionRing />           pulsing billboarded selection marker
  *     <PlanetLabel />             floating 3D typography
  *     <mesh hitProxy />           enlarged invisible hit sphere for ergonomic clicking
  *     <Moon />…                   moons are inclined to the ecliptic, so they
@@ -220,9 +218,6 @@ function Planet({ body }) {
       >
         <sphereGeometry args={[body.radius, 48, 24]} />
       </mesh>
-
-      {/* Pulsing selection indicator ring */}
-      <SelectionRing bodyId={body.id} radius={body.radius} />
 
       {/* Floating billboarded label */}
       <PlanetLabel body={body} />

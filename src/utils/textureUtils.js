@@ -36,13 +36,27 @@ const failures = new Set();
  * when the texture is uploaded, so a value the GPU cannot honour is safe rather
  * than an error. Phase 10 lowers it on weaker devices.
  */
-const ANISOTROPY = 8;
+let currentAnisotropy = 8;
+
+/**
+ * Updates the anisotropy filtering across all cached and future textures.
+ * Used by Phase 10 performance tier adaptation.
+ */
+export function setAnisotropy(value) {
+  currentAnisotropy = value;
+  for (const entry of entries.values()) {
+    if (entry.texture) {
+      entry.texture.anisotropy = value;
+      entry.texture.needsUpdate = true;
+    }
+  }
+}
 
 function configure(texture, url) {
   texture.colorSpace = NON_COLOR_TEXTURES.has(url)
     ? THREE.NoColorSpace
     : THREE.SRGBColorSpace;
-  texture.anisotropy = ANISOTROPY;
+  texture.anisotropy = currentAnisotropy;
   return texture;
 }
 

@@ -78,7 +78,12 @@ export function useCameraControls(controlsRef) {
       state.startTargetPos.copy(controls.target);
 
       const distance = camera.position.distanceTo(_overviewCam);
-      const duration = Math.min(Math.max(1.0 + distance / 45, 1.2), 2.4);
+      const prefersReducedMotion =
+        typeof window !== "undefined" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      const duration = prefersReducedMotion
+        ? 0.02
+        : Math.min(Math.max(1.0 + distance / 45, 1.2), 2.4);
 
       activeTweenRef.current = gsap.to(state.proxy, {
         p: 1,
@@ -129,7 +134,12 @@ export function useCameraControls(controlsRef) {
     state.proxy.p = 0;
 
     const travelDist = startOffset.length();
-    const duration = getTravelDuration(travelDist);
+    const prefersReducedMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const duration = prefersReducedMotion
+      ? 0.02
+      : getTravelDuration(travelDist);
 
     activeTweenRef.current = gsap.to(state.proxy, {
       p: 1,

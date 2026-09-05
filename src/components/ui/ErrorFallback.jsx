@@ -1,7 +1,47 @@
+import { Component } from "react";
+
 /**
  * Fallback screens for the two failure modes that would otherwise show the
  * user a black void: no WebGL support, and a crash inside the 3D scene.
  */
+
+/**
+ * React Error Boundary specifically guarding the 3D scene and WebGL Canvas.
+ */
+export class SceneErrorBoundary extends Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error, errorInfo) {
+    console.error(
+      "[SceneErrorBoundary] Uncaught exception in 3D scene:",
+      error,
+      errorInfo,
+    );
+  }
+
+  handleRetry = () => {
+    this.setState({ hasError: false, error: null });
+    if (this.props.onRetry) {
+      this.props.onRetry();
+    } else {
+      window.location.reload();
+    }
+  };
+
+  render() {
+    if (this.state.hasError) {
+      return <SceneError onRetry={this.handleRetry} />;
+    }
+    return this.props.children;
+  }
+}
 
 /**
  * Feature-detect WebGL without leaking a context.

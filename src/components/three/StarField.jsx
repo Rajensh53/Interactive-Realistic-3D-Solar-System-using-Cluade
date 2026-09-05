@@ -137,10 +137,17 @@ function StarField({ count = 10000, innerRadius = 320, outerRadius = 620 }) {
   useEffect(() => () => geometry.dispose(), [geometry]);
 
   useFrame((state, delta) => {
-    uniforms.uTime.value = state.clock.elapsedTime;
+    const prefersReducedMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-    // A drift slow enough to feel rather than see: one revolution ~3.5 hours.
-    if (groupRef.current) groupRef.current.rotation.y += delta * 0.0005;
+    if (!prefersReducedMotion) {
+      uniforms.uTime.value = state.clock.elapsedTime;
+      // A drift slow enough to feel rather than see: one revolution ~3.5 hours.
+      if (groupRef.current) groupRef.current.rotation.y += delta * 0.0005;
+    } else {
+      uniforms.uTime.value = 0;
+    }
   });
 
   return (

@@ -11,6 +11,7 @@ import { PLANETS } from "../../data/planets.js";
 import { advanceClock } from "../../utils/planetUtils.js";
 import { useTexturesReady } from "../../utils/textureUtils.js";
 import { usePlanetStore } from "../../hooks/usePlanetStore.js";
+import { TIER_CONFIG } from "../../hooks/useQualityTier.js";
 
 /**
  * Advances the simulation clock once per frame, ahead of everything that reads
@@ -42,9 +43,11 @@ function SimulationClock() {
  * are synchronous and no component suspends on its own, so there is no chance
  * of a load waterfall or of planets popping in one at a time.
  */
-function SolarSystem({ showOrbits, starCount = 10000, onReady }) {
+function SolarSystem({ showOrbits, starCount, onReady }) {
   useTexturesReady();
   const orbitsEnabled = usePlanetStore((s) => s.settings.orbitLines);
+  const qualityTier = usePlanetStore((s) => s.qualityTier) || "high";
+  const tierConfig = TIER_CONFIG[qualityTier] || TIER_CONFIG.high;
   const renderOrbits = showOrbits ?? orbitsEnabled;
 
   // Runs only once the boundary above has resolved, which makes it an honest
@@ -71,9 +74,12 @@ function SolarSystem({ showOrbits, starCount = 10000, onReady }) {
         ? PLANETS.map((body) => <Orbit key={`orbit-${body.id}`} body={body} />)
         : null}
 
-      <StarField count={starCount} />
+      <StarField count={starCount ?? tierConfig.starCount} />
       <SkyDome />
-      <SpaceEnvironment />
+      <SpaceEnvironment
+        dustCount={tierConfig.dustCount}
+        nebulaShells={tierConfig.nebulaShells}
+      />
     </>
   );
 }

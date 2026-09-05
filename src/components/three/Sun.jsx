@@ -15,7 +15,6 @@ import {
   SUN_FRAGMENT_SHADER,
 } from "../../shaders/sunShader.js";
 import Atmosphere from "./Atmosphere.jsx";
-import SelectionRing from "./SelectionRing.jsx";
 import PlanetLabel from "./PlanetLabel.jsx";
 import SunCoronaSprite from "./SunCoronaSprite.jsx";
 import SolarFlares from "./SolarFlares.jsx";
@@ -137,9 +136,6 @@ function Sun() {
         power={2.2}
         toneMapped={false}
       />
-
-      {/* Pulsing selection indicator ring */}
-      <SelectionRing bodyId={SUN.id} radius={SUN.radius} />
 
       {/* Floating billboarded label */}
       <PlanetLabel body={SUN} yOffset={SUN.radius + 1.2} />

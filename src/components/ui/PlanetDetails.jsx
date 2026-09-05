@@ -79,6 +79,8 @@ function PlanetDetails() {
           transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
           role="dialog"
           aria-label={`${body.name} details`}
+          aria-live="polite"
+          aria-atomic="true"
         >
           {/* Top Bar: Nav & Close */}
           <div className="flex items-center justify-between px-6 pt-5 pb-3 border-b border-white/10 shrink-0">
