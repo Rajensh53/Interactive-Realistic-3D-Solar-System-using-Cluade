@@ -20,6 +20,7 @@ import { SCENE } from "./utils/planetUtils.js";
 import { preloadTextures } from "./utils/textureUtils.js";
 import { installDevBridge } from "./utils/devBridge.js";
 import { usePlanetStore } from "./hooks/usePlanetStore.js";
+import { useAudioEngine } from "./hooks/useAudioEngine.js";
 import { getAdjacentPlanetId } from "./data/planets.js";
 
 const { OVERVIEW_CAMERA } = SCENE;
@@ -33,6 +34,9 @@ if (import.meta.env.DEV) {
 }
 
 export default function App() {
+  // Initialize procedural ambient space audio engine
+  useAudioEngine();
+
   const [assetsReady, setAssetsReady] = useState(false);
 
   const handleReady = useCallback(() => {

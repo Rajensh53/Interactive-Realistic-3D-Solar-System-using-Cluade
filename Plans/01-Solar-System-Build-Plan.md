@@ -421,9 +421,17 @@ Files: [`src/data/moons.js`](../src/data/moons.js), [`src/data/planets.js`](../s
 
 **Checkpoint:** focus Jupiter → 4 moons dance over ~1 min; focus Saturn → Titan + rings; click Europa/Titan → camera focuses with full data panel; zero console errors.
 
-### Phase 9 — Audio
-`useAudioEngine` per §3.8 + Controls integration (toggle, volume, gesture-gated start, no autoplay).
-**Checkpoint:** sound starts only after START EXPLORING; toggle + volume work; zero console errors.
+### Phase 9 — Audio ✅ DONE
+Files: [`src/hooks/useAudioEngine.js`](../src/hooks/useAudioEngine.js), [`src/App.jsx`](../src/App.jsx), [`src/components/ui/Controls.jsx`](../src/components/ui/Controls.jsx), [`src/hooks/usePlanetStore.js`](../src/hooks/usePlanetStore.js).
+
+- **Procedural Web Audio synthesis engine:** dual detuned sub-bass sine oscillators (55.0 Hz & 55.4 Hz) generating an organic 0.4 Hz acoustic binaural swell, warmed by a 110 Hz sub-harmonic and filtered with a 320 Hz lowpass resonant filter.
+- **Solar wind & cosmic background ether:** 4-second looping pink noise buffer generated with Paul Kellet's algorithm, modulated by a slow 0.075 Hz LFO (13.3s breathing cycle) through a dynamic bandpass filter.
+- **Gesture-gated initialization:** audio context remains dormant until the user explicitly clicks "START EXPLORING" or the audio button, satisfying modern browser autoplay requirements.
+- **Pop-free volume ramping:** smooth exponential transitions via `setTargetAtTime` on the master gain node.
+- **Controls integration:** mute/unmute toggle, hover volume slider popover, and real-time store synchronization.
+- **Visibility API handling:** automatically suspends audio on background/hidden tab to conserve CPU and battery, and resumes cleanly when focused.
+
+**Checkpoint:** sound starts only after START EXPLORING; toggle + volume work smoothly; zero console errors.
 
 ### Phase 10 — Performance & adaptation
 - `useQualityTier` detection + runtime downgrade; `AdaptiveDpr`; texture anisotropy; verify no per-frame React state anywhere (grep for `setState` in `useFrame`); `React.memo` on heavy static UI; useMemo for geometry.

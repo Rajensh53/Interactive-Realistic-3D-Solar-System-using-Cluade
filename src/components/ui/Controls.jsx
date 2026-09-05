@@ -19,10 +19,19 @@ function Controls() {
 
   const audio = usePlanetStore((s) => s.audio);
   const toggleAudio = usePlanetStore((s) => s.toggleAudio);
+  const startAudio = usePlanetStore((s) => s.startAudio);
   const setVolume = usePlanetStore((s) => s.setVolume);
 
   const setAboutOpen = usePlanetStore((s) => s.setAboutOpen);
   const [volumeOpen, setVolumeOpen] = useState(false);
+
+  function handleToggleAudio() {
+    if (!audio.started) {
+      startAudio();
+    } else {
+      toggleAudio();
+    }
+  }
 
   if (appState !== "exploring") return null;
 
@@ -100,7 +109,7 @@ function Controls() {
         {/* Audio Toggle & Volume Slider */}
         <div className="relative flex items-center">
           <button
-            onClick={toggleAudio}
+            onClick={handleToggleAudio}
             onMouseEnter={() => setVolumeOpen(true)}
             className={`glass-panel flex items-center justify-center w-9 h-9 rounded-full border transition-all cursor-pointer ${
               audio.enabled
