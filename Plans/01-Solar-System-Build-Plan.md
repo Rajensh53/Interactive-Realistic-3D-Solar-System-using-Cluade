@@ -363,16 +363,27 @@ Files: [`scripts/fetch-textures.sh`](../scripts/fetch-textures.sh), [`textures.j
 - Zero console errors on a clean load; only the benign upstream `THREE.Clock ... deprecated` from inside @react-three/fiber.
 
 
-### Phase 4 — Interaction + labels
-- Hover: outline (slight emissive boost or scaled `meshBasicMaterial` shell), scale ×1.04, cursor pointer, hover glow — all lerped in `useFrame`, no React re-renders.
-- `PlanetLabel.jsx`: drei `<Html>` + `distanceFactor` (fades by distance), `occlude` raycast on High/Medium tier, distanced-based hide.
-- Click → `selectPlanet(id)` in store + highlight ring.
-**Checkpoint:** hover any planet — glow, cursor, label; click fires selection; labels fade near/behind.
+### Phase 4 — Interaction + labels ✅ DONE
+Files: [`PlanetLabel.jsx`](../src/components/three/PlanetLabel.jsx), [`SelectionRing.jsx`](../src/components/three/SelectionRing.jsx), [`Planet.jsx`](../src/components/three/Planet.jsx), [`Sun.jsx`](../src/components/three/Sun.jsx), [`usePlanetStore.js`](../src/hooks/usePlanetStore.js), [`App.jsx`](../src/App.jsx).
 
-### Phase 5 — Cinematic camera (spec §9/§14/§15)
-- `useCameraControls` state machine exactly per §3.2: GSAP spherical tween, moving-target follow, travel disable of controls, arrival damping, return-to-overview tween.
-- Idle drift: `useIdleDrift` → autoRotate after 8 s idle, stop on interaction.
-**Checkpoint:** click Earth from overview — camera curves in, never clips, lands on a still-moving Earth; click BACK — smooth zoom out; 10 s idle → gentle drift.
+- **Hover feedback with zero React re-renders.** Scale (×1.04) and windowed Fresnel rim glow intensity are lerped smoothly in `useFrame` via `THREE.MathUtils.damp`. Cursor dynamically reflects pointer state.
+- **Ergonomic hit testing.** Small bodies (Mercury, Mars) include an invisible hit proxy sphere (`Math.max(radius * 1.25, 1.25)`) to eliminate frustrating pixel hunting from overview distances.
+- **Floating 3D labels.** Drei `<Html>` labels in Orbitron typography, with dynamic indicator dots, distance-based fade (fading out smoothly within 3.2 body radii so closeups are uncluttered), and Drei `occlude="blending"` raycasting.
+- **Pulsing selection indicator ring.** Distance-invariant 2px stroke billboarding shader mounted on all 8 planets and the Sun.
+- **Background deselect.** Clicking canvas background clears selection.
+- **Store settings.** `settings` (`orbitLines`, `labels`, `idleDrift`) and `toggleSetting` added to `usePlanetStore`.
+
+
+### Phase 5 — Cinematic camera (spec §9/§14/§15) ✅ DONE
+Files: [`animationUtils.js`](../src/utils/animationUtils.js), [`useCameraControls.js`](../src/hooks/useCameraControls.js), [`useIdleDrift.js`](../src/hooks/useIdleDrift.js), [`CameraController.jsx`](../src/components/three/CameraController.jsx), [`usePlanetStore.js`](../src/hooks/usePlanetStore.js).
+
+- **Three-state camera machine.** `idle` ↔ `traveling` ↔ `following` in `usePlanetStore`. OrbitControls disabled during travel to eliminate conflicting input.
+- **GSAP spherical flight interpolation.** Coordinates animate along a spherical offset `{r, phi, theta}` relative to the moving target body, preventing camera clipping and ensuring natural curved deceleration (`power3.inOut`).
+- **Moving target tracking in `useFrame`.** Target position is sampled continuously from the live scene graph; camera lands on the planet even as it orbits.
+- **Damped orbit following.** Once arrived, `controls.target` continuously follows the orbiting body while translating the camera by the planet's delta motion. User can freely orbit and zoom around the planet with custom distance clamps per body (e.g. Saturn framing its full ring system).
+- **Return to overview.** Deselecting smoothly tweens camera and target back to `(0, 32, 105)` and `(0, 0, 0)`.
+- **Idle drift.** 8 seconds of no pointer/keyboard activity triggers subtle auto-rotation (`speed: 0.12`). Any interaction immediately halts the drift and resets the timer. Respects `prefers-reduced-motion`.
+
 
 ### Phase 6 — UI layer
 - `WelcomeOverlay` (EXPLORE THE SOLAR SYSTEM / START EXPLORING; also starts audio engine).

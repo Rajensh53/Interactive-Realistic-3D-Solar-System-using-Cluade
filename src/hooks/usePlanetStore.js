@@ -35,6 +35,11 @@ export const usePlanetStore = create((set) => ({
   /** Body the user has selected, or null. Drives the camera and the panel. */
   selectedPlanetId: null,
 
+  /** Camera animation state machine: 'idle' (overview) | 'traveling' | 'following'. */
+  cameraPhase: "idle",
+
+  setCameraPhase: (phase) => set({ cameraPhase: phase }),
+
   setHovered: (id) => set({ hoveredPlanetId: id }),
 
   /**
@@ -52,4 +57,27 @@ export const usePlanetStore = create((set) => ({
   selectPlanet: (id) => set({ selectedPlanetId: id }),
 
   clearSelection: () => set({ selectedPlanetId: null }),
+
+  /** Display and animation toggles. */
+  settings: {
+    orbitLines: true,
+    labels: true,
+    idleDrift: true,
+  },
+
+  toggleSetting: (key) =>
+    set((state) => ({
+      settings: {
+        ...state.settings,
+        [key]: !state.settings[key],
+      },
+    })),
+
+  setSetting: (key, value) =>
+    set((state) => ({
+      settings: {
+        ...state.settings,
+        [key]: value,
+      },
+    })),
 }));

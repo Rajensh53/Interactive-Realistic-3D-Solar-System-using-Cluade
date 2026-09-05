@@ -1,29 +1,32 @@
-import { memo, useMemo, useRef } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
 import { SUN } from "../../data/planets.js";
-import { simulationClock } from "../../utils/planetUtils.js";
+import {
+  registerBody,
+  unregisterBody,
+  simulationClock,
+} from "../../utils/planetUtils.js";
+import { usePlanetStore } from "../../hooks/usePlanetStore.js";
 import { getTexture } from "../../utils/textureUtils.js";
 import Atmosphere from "./Atmosphere.jsx";
+import SelectionRing from "./SelectionRing.jsx";
+import PlanetLabel from "./PlanetLabel.jsx";
 
 /**
- * The Sun — the scene's only real light source.
+ * The Sun — the scene's only real light source and a selectable central body.
  *
  * A photospheric granulation map bright enough to trip the bloom threshold, a
- * soft corona shell, and the point light every planet is lit by. The animated
- * fbm surface shader, solar flares and volumetric glow arrive in Phase 7.
+ * soft corona shell, interactive hover/selection, and the point light every
+ * planet is lit by.
  */
 function Sun() {
+  const groupRef = useRef(null);
   const spinRef = useRef(null);
+  const currentScaleRef = useRef(1.0);
   const surfaceMap = getTexture(SUN.texture);
 
-  // Pushed above 1.0 so the bloom pass (luminanceThreshold 1) catches the Sun
-  // and nothing else. `toneMapped={false}` keeps ACES from clamping it back.
-  //
-  // With the map present the tint stays neutral and the texture supplies the
-  // colour; without it the flat amber has to carry the whole look, so it is
-  // driven a little harder.
   const coreColor = useMemo(
     () =>
       surfaceMap
@@ -32,15 +35,65 @@ function Sun() {
     [surfaceMap],
   );
 
-  useFrame(() => {
+  useLayoutEffect(() => {
+    if (groupRef.current) {
+      registerBody(SUN.id, groupRef.current, SUN.radius);
+    }
+    return () => unregisterBody(SUN.id);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (usePlanetStore.getState().hoveredPlanetId === SUN.id) {
+        document.body.style.cursor = "auto";
+      }
+    };
+  }, []);
+
+  const handlePointerEnter = useCallback((e) => {
+    e.stopPropagation();
+    usePlanetStore.getState().setHovered(SUN.id);
+    document.body.style.cursor = "pointer";
+  }, []);
+
+  const handlePointerLeave = useCallback((e) => {
+    e.stopPropagation();
+    usePlanetStore.getState().clearHovered(SUN.id);
+    document.body.style.cursor = "auto";
+  }, []);
+
+  const handleClick = useCallback((e) => {
+    e.stopPropagation();
+    usePlanetStore.getState().selectPlanet(SUN.id);
+  }, []);
+
+  useFrame((_, delta) => {
     if (spinRef.current) {
       spinRef.current.rotation.y = SUN.rotationSpeed * simulationClock.time;
+    }
+
+    // Hover scale animation
+    const hovered = usePlanetStore.getState().hoveredPlanetId === SUN.id;
+    const targetScale = hovered ? 1.03 : 1.0;
+    currentScaleRef.current = THREE.MathUtils.damp(
+      currentScaleRef.current,
+      targetScale,
+      10,
+      delta,
+    );
+    if (spinRef.current) {
+      spinRef.current.scale.setScalar(currentScaleRef.current);
     }
   });
 
   return (
-    <group>
-      <mesh ref={spinRef}>
+    <group ref={groupRef}>
+      <mesh
+        ref={spinRef}
+        onPointerEnter={handlePointerEnter}
+        onPointerLeave={handlePointerLeave}
+        onClick={handleClick}
+      >
         <sphereGeometry args={[SUN.radius, 64, 32]} />
         <meshBasicMaterial
           map={surfaceMap ?? null}
@@ -49,11 +102,7 @@ function Sun() {
         />
       </mesh>
 
-      {/* Corona. Shares the planets' limb-glow shell, minus the solar mask —
-          the Sun lights itself, so the halo is even all the way round. It was
-          previously a flat-opacity shell, which had no falloff at all and so
-          showed its own silhouette as a hard-edged polygon. The sprite, flares
-          and animated fbm surface arrive in Phase 7. */}
+      {/* Corona */}
       <Atmosphere
         radius={SUN.radius}
         color={SUN.fallbackColor}
@@ -63,12 +112,17 @@ function Sun() {
         toneMapped={false}
       />
 
-      {/* decay={0} keeps intensity constant across the system. Physically
-          wrong, but inverse-square falloff over 92 scene units would leave
-          Neptune in total darkness. */}
+      {/* Pulsing selection indicator ring */}
+      <SelectionRing bodyId={SUN.id} radius={SUN.radius} />
+
+      {/* Floating billboarded label */}
+      <PlanetLabel body={SUN} yOffset={SUN.radius + 1.2} />
+
+      {/* decay={0} keeps intensity constant across the system */}
       <pointLight intensity={2.2} decay={0} color="#fff2dc" />
     </group>
   );
 }
 
 export default memo(Sun);
+

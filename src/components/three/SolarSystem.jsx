@@ -9,6 +9,7 @@ import SkyDome from "./SkyDome.jsx";
 import { PLANETS } from "../../data/planets.js";
 import { advanceClock } from "../../utils/planetUtils.js";
 import { useTexturesReady } from "../../utils/textureUtils.js";
+import { usePlanetStore } from "../../hooks/usePlanetStore.js";
 
 /**
  * Advances the simulation clock once per frame, ahead of everything that reads
@@ -40,8 +41,10 @@ function SimulationClock() {
  * are synchronous and no component suspends on its own, so there is no chance
  * of a load waterfall or of planets popping in one at a time.
  */
-function SolarSystem({ showOrbits = true, starCount = 10000, onReady }) {
+function SolarSystem({ showOrbits, starCount = 10000, onReady }) {
   useTexturesReady();
+  const orbitsEnabled = usePlanetStore((s) => s.settings.orbitLines);
+  const renderOrbits = showOrbits ?? orbitsEnabled;
 
   // Runs only once the boundary above has resolved, which makes it an honest
   // "assets are in, the scene can be shown" signal for the loading screen.
@@ -63,7 +66,7 @@ function SolarSystem({ showOrbits = true, starCount = 10000, onReady }) {
         <Planet key={body.id} body={body} />
       ))}
 
-      {showOrbits
+      {renderOrbits
         ? PLANETS.map((body) => <Orbit key={`orbit-${body.id}`} body={body} />)
         : null}
 

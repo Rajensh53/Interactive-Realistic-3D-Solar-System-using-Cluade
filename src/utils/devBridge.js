@@ -8,6 +8,7 @@ import {
 import { PLANETS, BODIES } from "../data/planets.js";
 import { MOONS } from "../data/moons.js";
 import { getTextureFailures, textureStatus } from "./textureUtils.js";
+import { usePlanetStore } from "../hooks/usePlanetStore.js";
 
 /**
  * Dev-only diagnostics handle, exposed as `window.__solar`.
@@ -189,7 +190,56 @@ export function installDevBridge() {
       });
     },
 
+    /** Interaction test helpers. */
+    select(id) {
+      usePlanetStore.getState().selectPlanet(id);
+      return usePlanetStore.getState().selectedPlanetId;
+    },
+
+    clearSelection() {
+      usePlanetStore.getState().clearSelection();
+      return usePlanetStore.getState().selectedPlanetId;
+    },
+
+    getSelected() {
+      return usePlanetStore.getState().selectedPlanetId;
+    },
+
+    hover(id) {
+      usePlanetStore.getState().setHovered(id);
+      return usePlanetStore.getState().hoveredPlanetId;
+    },
+
+    clearHover(id) {
+      usePlanetStore.getState().clearHovered(id);
+      return usePlanetStore.getState().hoveredPlanetId;
+    },
+
+    getHovered() {
+      return usePlanetStore.getState().hoveredPlanetId;
+    },
+
+    toggleSetting(key) {
+      usePlanetStore.getState().toggleSetting(key);
+      return usePlanetStore.getState().settings;
+    },
+
+    getSettings() {
+      return usePlanetStore.getState().settings;
+    },
+
+    getCameraPhase() {
+      return usePlanetStore.getState().cameraPhase;
+    },
+
+    resetView() {
+      usePlanetStore.getState().clearSelection();
+      return "returning to overview";
+    },
+
     bodyCount: BODIES.length,
     moonCount: MOONS.length,
   };
 }
+
+

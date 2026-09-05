@@ -14,6 +14,7 @@ import {
 import { SCENE } from "./utils/planetUtils.js";
 import { preloadTextures } from "./utils/textureUtils.js";
 import { installDevBridge } from "./utils/devBridge.js";
+import { usePlanetStore } from "./hooks/usePlanetStore.js";
 
 const { OVERVIEW_CAMERA } = SCENE;
 
@@ -55,8 +56,12 @@ export default function App() {
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: 1.0,
         }}
+        onPointerMissed={() => {
+          usePlanetStore.getState().clearSelection();
+        }}
       >
         <color attach="background" args={["#03040a"]} />
+
 
         {/* `fallback={null}` rather than a 3D placeholder: the DOM loading
             screen above already owns the waiting state. */}

@@ -1,12 +1,17 @@
-import { memo, useLayoutEffect, useMemo, useRef } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
+import * as THREE from "three";
 
 import Moon from "./Moon.jsx";
 import Rings from "./Rings.jsx";
 import CloudLayer from "./CloudLayer.jsx";
 import Atmosphere from "./Atmosphere.jsx";
+import SelectionRing from "./SelectionRing.jsx";
+import PlanetLabel from "./PlanetLabel.jsx";
 import { getMoonsFor } from "../../data/moons.js";
 import { usePlanetMaterial, useSunDirection } from "../../hooks/usePlanetMaterial.js";
+import { usePlanetStore } from "../../hooks/usePlanetStore.js";
+import { createLimbGlowMaterial } from "../../shaders/limbGlow.js";
 import {
   orbitalPositionAt,
   registerBody,
@@ -20,27 +25,32 @@ const _pos = { x: 0, y: 0, z: 0 };
 
 /**
  * A planet: its elliptical orbit, its axial tilt, its spin, its rings, its
- * atmosphere and its moons.
+ * atmosphere, its moons, its interactive hit testing, and its hover/selection
+ * state.
  *
  * Node hierarchy, and why:
  *
  *   <group orbitRef>              position solved from the ellipse each frame
- *     <group tilt>                constant axial tilt about Z
+ *     <group spinGroup tilt>      constant axial tilt about Z, scales on hover
  *       <mesh spinRef>            rotates about its own (now tilted) Y axis
  *       <CloudLayer />            spins faster than the surface below it
  *       <Rings />                 rings lie in the equatorial plane, so they
  *                                 belong inside the tilt group
  *     <Atmosphere />              a rim glow is view-dependent, not surface-
  *                                 bound, so tilt and spin are irrelevant to it
+ *     <mesh hoverGlow />          windowed Fresnel outline shell, fades on hover
+ *     <SelectionRing />           pulsing billboarded selection marker
+ *     <PlanetLabel />             floating 3D typography
+ *     <mesh hitProxy />           enlarged invisible hit sphere for ergonomic clicking
  *     <Moon />…                   moons are inclined to the ecliptic, so they
  *                                 sit outside the tilt group
- *
- * Retrograde rotation is encoded entirely by tilt: Venus (177.4°) and Uranus
- * (97.8°) are tipped past vertical, so a positive spin reads as backwards.
  */
 function Planet({ body }) {
   const orbitRef = useRef(null);
+  const spinGroupRef = useRef(null);
   const spinRef = useRef(null);
+  const hoverGlowRef = useRef(null);
+  const currentScaleRef = useRef(1.0);
 
   const moons = getMoonsFor(body.id);
 
@@ -54,49 +64,130 @@ function Planet({ body }) {
   const tiltRotation = useMemo(() => [0, 0, body.axialTilt], [body.axialTilt]);
 
   // Venus's haze is thicker and warmer than Earth's air; a shared component
-  // covers both, driven by whichever colour the body declares. The powers are
-  // what separate them: a high exponent keeps a thin air glow pinned to the
-  // limb, a low one lets the haze bleed well onto the disc.
+  // covers both, driven by whichever colour the body declares.
   const halo = body.atmosphereColor
     ? { color: body.atmosphereColor, scale: 1.055, intensity: 0.7, power: 3.6 }
     : body.hazeColor
       ? { color: body.hazeColor, scale: 1.09, intensity: 0.8, power: 2.0 }
       : null;
 
+  // Subtle hover outline glow — omnidirectional windowed Fresnel rim
+  const hoverGlowMaterial = useMemo(
+    () =>
+      createLimbGlowMaterial({
+        color: body.atmosphereColor || body.fallbackColor || "#38bdf8",
+        scale: 1.15,
+        intensity: 0.0,
+        power: 2.8,
+        toneMapped: false,
+      }),
+    [body],
+  );
+
+  useEffect(() => () => hoverGlowMaterial.dispose(), [hoverGlowMaterial]);
+
+  // Ensure cursor is restored if unmounted while hovered
+  useEffect(() => {
+    return () => {
+      if (usePlanetStore.getState().hoveredPlanetId === body.id) {
+        document.body.style.cursor = "auto";
+      }
+    };
+  }, [body.id]);
+
   useLayoutEffect(() => {
     registerBody(body.id, orbitRef.current, body.radius);
-    // Parked on the node so anything holding a reference to the body — the
-    // camera controller, diagnostics — can read the terminator without
-    // re-deriving it.
     orbitRef.current.userData.sunDirection = sunDirection;
     return () => unregisterBody(body.id);
   }, [body.id, body.radius, sunDirection]);
 
-  useFrame(() => {
+  // Pointer event handlers with stopPropagation to prevent canvas bubbling
+  const handlePointerEnter = useCallback(
+    (e) => {
+      e.stopPropagation();
+      usePlanetStore.getState().setHovered(body.id);
+      document.body.style.cursor = "pointer";
+    },
+    [body.id],
+  );
+
+  const handlePointerLeave = useCallback(
+    (e) => {
+      e.stopPropagation();
+      usePlanetStore.getState().clearHovered(body.id);
+      document.body.style.cursor = "auto";
+    },
+    [body.id],
+  );
+
+  const handleClick = useCallback(
+    (e) => {
+      e.stopPropagation();
+      usePlanetStore.getState().selectPlanet(body.id);
+    },
+    [body.id],
+  );
+
+  useFrame((_, delta) => {
     const t = simulationClock.time;
 
     const orbit = orbitRef.current;
     if (orbit) {
       orbitalPositionAt(body, t, _pos);
       orbit.position.set(_pos.x, _pos.y, _pos.z);
-
-      // The Sun sits at the origin, so the direction to it is simply the
-      // negated orbital position. Written straight into the shared uniform —
-      // one normalise per planet per frame, and no React involvement.
       sunDirection.value.set(-_pos.x, -_pos.y, -_pos.z).normalize();
     }
 
-    // Spin is derived from absolute time rather than accumulated per frame.
-    // Same delta-time independence, but with no drift and exact resumability.
     if (spinRef.current) {
       spinRef.current.rotation.y = body.rotationSpeed * t;
     }
+
+    // Hover animation: smooth scale lerp & outline glow
+    const hovered = usePlanetStore.getState().hoveredPlanetId === body.id;
+
+    // 1. Smoothly damp scale (1.0 -> 1.04)
+    const targetScale = hovered ? 1.04 : 1.0;
+    currentScaleRef.current = THREE.MathUtils.damp(
+      currentScaleRef.current,
+      targetScale,
+      10,
+      delta,
+    );
+    if (spinGroupRef.current) {
+      spinGroupRef.current.scale.setScalar(currentScaleRef.current);
+    }
+
+    // 2. Smoothly damp hover outline intensity
+    const currentIntensity = hoverGlowMaterial.uniforms.uIntensity.value;
+    const targetIntensity = hovered ? 0.9 : 0.0;
+    const newIntensity = THREE.MathUtils.damp(
+      currentIntensity,
+      targetIntensity,
+      12,
+      delta,
+    );
+    hoverGlowMaterial.uniforms.uIntensity.value = newIntensity;
+    if (hoverGlowRef.current) {
+      hoverGlowRef.current.visible = newIntensity > 0.005;
+    }
   });
+
+  // Small planets (Mercury 0.38, Mars 0.53) span 2-3px at overview distance.
+  // Hit proxy floor prevents frustrating pixel-hunting.
+  const hitRadius = Math.max(body.radius * 1.25, 1.25);
 
   return (
     <group ref={orbitRef}>
-      <group rotation={tiltRotation}>
-        <mesh ref={spinRef} material={surfaceMaterial}>
+      {/* Tilt group: first child group in orbitRef (inspected by devBridge) */}
+      <group ref={spinGroupRef} rotation={tiltRotation}>
+        {/* Surface mesh: first child mesh in tilt group (inspected by devBridge) */}
+        <mesh
+          ref={spinRef}
+          material={surfaceMaterial}
+          onPointerEnter={handlePointerEnter}
+          onPointerLeave={handlePointerLeave}
+          onClick={handleClick}
+        >
           <sphereGeometry args={[body.radius, 64, 32]} />
         </mesh>
 
@@ -116,6 +207,33 @@ function Planet({ body }) {
         />
       ) : null}
 
+      {/* Hover outline rim glow */}
+      <mesh
+        ref={hoverGlowRef}
+        material={hoverGlowMaterial}
+        scale={1.15}
+        visible={false}
+      >
+        <sphereGeometry args={[body.radius, 48, 24]} />
+      </mesh>
+
+      {/* Pulsing selection indicator ring */}
+      <SelectionRing bodyId={body.id} radius={body.radius} />
+
+      {/* Floating billboarded label */}
+      <PlanetLabel body={body} />
+
+      {/* Invisible hit proxy sphere for ergonomic click/hover hit testing */}
+      <mesh
+        name={`hit-proxy-${body.id}`}
+        onPointerEnter={handlePointerEnter}
+        onPointerLeave={handlePointerLeave}
+        onClick={handleClick}
+      >
+        <sphereGeometry args={[hitRadius, 16, 16]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+
       {moons.map((moon) => (
         <Moon key={moon.id} moon={moon} />
       ))}
@@ -125,3 +243,4 @@ function Planet({ body }) {
 
 // Body objects are module-level constants, so this never re-renders after mount.
 export default memo(Planet);
+
