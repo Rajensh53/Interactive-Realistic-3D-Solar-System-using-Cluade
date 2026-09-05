@@ -1,0 +1,109 @@
+@import "tailwindcss";
+
+/* ---------------------------------------------------------------------------
+   Design tokens (Tailwind v4 @theme -> generates utilities like `text-ink-100`,
+   `bg-space-900`, `font-display`, ...). Keep the palette narrow and premium:
+   deep space blacks, one cool accent (cyan), one warm accent (solar amber).
+   --------------------------------------------------------------------------- */
+@theme {
+  --font-display: "Orbitron", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+
+  /* Deep space surfaces */
+  --color-space-950: #03040a;
+  --color-space-900: #060913;
+  --color-space-800: #0b1020;
+  --color-space-700: #141a2e;
+
+  /* Cool accent — UI highlights, focus rings, active states */
+  --color-accent-300: #7dd3fc;
+  --color-accent-400: #38bdf8;
+  --color-accent-500: #0ea5e9;
+
+  /* Warm accent — the Sun, key numbers, selected planet */
+  --color-solar-300: #fcd34d;
+  --color-solar-400: #fbbf24;
+  --color-solar-500: #f59e0b;
+
+  /* Text */
+  --color-ink-100: #e2e8f0;
+  --color-ink-300: #94a3b8;
+  --color-ink-500: #64748b;
+
+  /* Motion — matches the cinematic easing used by GSAP camera moves */
+  --ease-cinematic: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-out-soft: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    margin: 0;
+    background-color: var(--color-space-950);
+    color: var(--color-ink-100);
+    font-family: var(--font-sans);
+    /* The 3D canvas owns the viewport — never let the page itself scroll. */
+    overflow: hidden;
+    overscroll-behavior: none;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Headings and numeric readouts use the futuristic face. */
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    letter-spacing: 0.06em;
+  }
+
+  /* Accessibility: a clearly visible focus ring on every interactive element. */
+  :focus-visible {
+    outline: 2px solid var(--color-accent-400);
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, var(--color-accent-400) 35%, transparent);
+  }
+
+  /* Respect the OS "reduce motion" preference for all CSS-driven animation.
+     JS-driven camera travel checks this separately (see useCameraControls). */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+@layer components {
+  /* The core UI surface: frosted glass over deep space. */
+  .glass-panel {
+    background: color-mix(in srgb, var(--color-space-800) 55%, transparent);
+    backdrop-filter: blur(20px) saturate(140%);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    border: 1px solid color-mix(in srgb, white 10%, transparent);
+    box-shadow:
+      0 20px 60px -20px rgb(0 0 0 / 0.8),
+      inset 0 1px 0 0 color-mix(in srgb, white 8%, transparent);
+  }
+
+  /* Small caps label used for stat keys and section headers. */
+  .label-caps {
+    font-family: var(--font-display);
+    font-size: 0.6875rem;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--color-ink-500);
+  }
+}
