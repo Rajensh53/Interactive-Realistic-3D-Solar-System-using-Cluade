@@ -3,6 +3,7 @@ import {
   orbitTimeFromPeriod,
   semiMinorFromEccentricity,
 } from "../utils/planetUtils.js";
+import { getMoonById, getMoonsFor } from "./moons.js";
 
 /**
  * The single source of truth for every body in the scene.
@@ -432,19 +433,31 @@ export const BODY_BY_ID = new Map(BODIES.map((b) => [b.id, b]));
 export const PLANET_IDS = PLANETS.map((p) => p.id);
 
 export function getBodyById(id) {
-  return BODY_BY_ID.get(id);
+  return BODY_BY_ID.get(id) || getMoonById(id);
 }
 
 /** Earth, used as the reference point for the "distance from Earth" readout. */
 export const EARTH = BODY_BY_ID.get("earth");
 
 /**
- * Neighbouring planet id, wrapping at both ends. Powers the details panel's
- * previous/next controls.
+ * Neighbouring body id, wrapping at both ends. Powers the details panel's
+ * previous/next controls. If currently inspecting a moon, cycles through sibling
+ * moons of the same parent planet.
  * @param {string} id
  * @param {1|-1} step
  */
 export function getAdjacentPlanetId(id, step) {
+  const moon = getMoonById(id);
+  if (moon) {
+    const siblings = getMoonsFor(moon.parentId);
+    if (siblings && siblings.length > 1) {
+      const idx = siblings.findIndex((m) => m.id === id);
+      const nextIdx = (idx + step + siblings.length) % siblings.length;
+      return siblings[nextIdx].id;
+    }
+    return moon.parentId; // Jump back to parent planet if sole moon
+  }
+
   const index = PLANET_IDS.indexOf(id);
   if (index === -1) return PLANET_IDS[0];
   const next = (index + step + PLANET_IDS.length) % PLANET_IDS.length;

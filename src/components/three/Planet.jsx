@@ -3,6 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
 import Moon from "./Moon.jsx";
+import MoonOrbit from "./MoonOrbit.jsx";
 import Rings from "./Rings.jsx";
 import CloudLayer from "./CloudLayer.jsx";
 import Atmosphere from "./Atmosphere.jsx";
@@ -53,6 +54,7 @@ function Planet({ body }) {
   const currentScaleRef = useRef(1.0);
 
   const moons = getMoonsFor(body.id);
+  const showOrbits = usePlanetStore((s) => s.settings.orbitLines);
 
   // Shared by the surface material's night-lights mask and the atmosphere's
   // day/night falloff, so both agree on where the terminator is.
@@ -235,6 +237,11 @@ function Planet({ body }) {
         <sphereGeometry args={[hitRadius, 16, 16]} />
         <meshBasicMaterial transparent opacity={0} depthWrite={false} />
       </mesh>
+
+      {showOrbits &&
+        moons.map((moon) => (
+          <MoonOrbit key={`orbit-${moon.id}`} moon={moon} />
+        ))}
 
       {moons.map((moon) => (
         <Moon key={moon.id} moon={moon} />

@@ -7,6 +7,7 @@ import {
   getAdjacentPlanetId,
   EARTH,
 } from "../../data/planets.js";
+import { getMoonsFor } from "../../data/moons.js";
 import {
   distanceBetweenKm,
   formatDistanceKm,
@@ -14,14 +15,16 @@ import {
 } from "../../utils/planetUtils.js";
 
 /**
- * Futuristic glassmorphism planet information panel.
+ * Futuristic glassmorphism body information panel.
  *
- * Spec §10, §11, §12, §13:
- * - Slides in from right when a planet is selected
+ * Spec §10, §11, §12, §13 & Phase 8:
+ * - Slides in from right when a planet, the Sun, or a moon is selected
  * - Header with category, name, prev/next arrows, and close button
  * - Detailed physical stats & scientific metrics
  * - Live real-time distance from Earth (4Hz throttled ref write, zero re-renders)
  * - Curated fun facts with glowing bullet points
+ * - Natural Satellites navigation rail for planets with moons (Jupiter, Saturn, Earth)
+ * - Parent planet navigation for active moons
  */
 function PlanetDetails() {
   const selectedPlanetId = usePlanetStore((s) => s.selectedPlanetId);
@@ -31,13 +34,18 @@ function PlanetDetails() {
   const body = selectedPlanetId ? getBodyById(selectedPlanetId) : null;
   const earthDistSpanRef = useRef(null);
 
+  // If viewing a planet, check if it has modeled satellites
+  const planetMoons = body && !body.parentId ? getMoonsFor(body.id) : [];
+
   // 4Hz live update for Distance from Earth without triggering React re-renders
   useEffect(() => {
     if (!body || body.id === "earth") return;
 
     function updateDistance() {
       if (earthDistSpanRef.current) {
-        const km = distanceBetweenKm(EARTH, body, simulationClock.time);
+        // For moons, reference the parent planet's orbit
+        const target = body.parentId ? getBodyById(body.parentId) : body;
+        const km = distanceBetweenKm(EARTH, target, simulationClock.time);
         earthDistSpanRef.current.innerText = formatDistanceKm(km);
       }
     }
@@ -64,7 +72,7 @@ function PlanetDetails() {
       {body ? (
         <motion.aside
           key={`panel-${body.id}`}
-          className="glass-panel fixed top-4 right-4 bottom-4 w-full sm:w-[410px] max-w-[calc(100vw-2rem)] z-30 rounded-2xl flex flex-col overflow-hidden shadow-2xl border border-white/10"
+          className="glass-panel fixed top-4 right-4 bottom-4 w-full sm:w-[420px] max-w-[calc(100vw-2rem)] z-30 rounded-2xl flex flex-col overflow-hidden shadow-2xl border border-white/10"
           initial={{ x: 60, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           exit={{ x: 60, opacity: 0 }}
@@ -74,13 +82,13 @@ function PlanetDetails() {
         >
           {/* Top Bar: Nav & Close */}
           <div className="flex items-center justify-between px-6 pt-5 pb-3 border-b border-white/10 shrink-0">
-            {/* Prev / Next Planet Cycling */}
+            {/* Prev / Next Body Cycling */}
             <div className="flex items-center gap-1">
               <button
                 onClick={handlePrev}
                 className="p-1.5 rounded-lg text-ink-300 hover:text-ink-100 hover:bg-white/10 transition-colors cursor-pointer"
-                title="Previous planet (Left Arrow)"
-                aria-label="Previous planet"
+                title={body.parentId ? "Previous sibling moon (Left Arrow)" : "Previous planet (Left Arrow)"}
+                aria-label="Previous body"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -89,15 +97,15 @@ function PlanetDetails() {
               <button
                 onClick={handleNext}
                 className="p-1.5 rounded-lg text-ink-300 hover:text-ink-100 hover:bg-white/10 transition-colors cursor-pointer"
-                title="Next planet (Right Arrow)"
-                aria-label="Next planet"
+                title={body.parentId ? "Next sibling moon (Right Arrow)" : "Next planet (Right Arrow)"}
+                aria-label="Next body"
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
                 </svg>
               </button>
               <span className="text-[10px] uppercase font-display tracking-widest text-ink-500 ml-1">
-                Cycle
+                {body.parentId ? "Moons" : "Cycle"}
               </span>
             </div>
 
@@ -119,9 +127,26 @@ function PlanetDetails() {
           <div className="flex-1 overflow-y-auto px-6 py-5 space-y-6 custom-scrollbar">
             {/* Header: Name & Category */}
             <div>
-              <span className="label-caps inline-block px-2.5 py-0.5 rounded-full bg-accent-500/10 border border-accent-400/20 text-accent-300 text-[10px]">
-                {body.category}
-              </span>
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="label-caps inline-block px-2.5 py-0.5 rounded-full bg-accent-500/10 border border-accent-400/20 text-accent-300 text-[10px]">
+                  {body.category}
+                </span>
+
+                {/* If this is a moon, show parent link badge */}
+                {body.parentId ? (
+                  <button
+                    onClick={() => selectPlanet(body.parentId)}
+                    className="label-caps inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-solar-500/15 border border-solar-400/30 text-solar-300 hover:bg-solar-500/25 transition-all text-[10px] cursor-pointer"
+                    title={`Focus on parent planet ${body.parentName}`}
+                  >
+                    <span>{body.parentName} System</span>
+                    <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                ) : null}
+              </div>
+
               <h2 className="mt-2 text-3xl font-extrabold text-ink-100 font-display tracking-wide uppercase">
                 {body.name}
               </h2>
@@ -129,6 +154,36 @@ function PlanetDetails() {
                 {body.description}
               </p>
             </div>
+
+            {/* If viewing a parent planet with moons, render quick-jump moon chips */}
+            {planetMoons.length > 0 ? (
+              <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/10">
+                <div className="flex items-center justify-between mb-2.5">
+                  <span className="label-caps text-ink-400 text-[10px]">
+                    Major Moons ({planetMoons.length})
+                  </span>
+                  <span className="text-[10px] text-ink-500 font-sans">Click to focus</span>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  {planetMoons.map((m) => (
+                    <button
+                      key={m.id}
+                      onClick={() => selectPlanet(m.id)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-white/5 hover:bg-solar-500/20 border border-white/10 hover:border-solar-400/50 text-ink-200 hover:text-solar-300 text-xs font-display tracking-wider transition-all cursor-pointer"
+                    >
+                      <span
+                        className="w-2 h-2 rounded-full shrink-0"
+                        style={{ backgroundColor: m.fallbackColor }}
+                      />
+                      <span>{m.name}</span>
+                      <svg className="w-3 h-3 opacity-50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
 
             {/* Scientific Information Grid */}
             <div>
@@ -146,13 +201,17 @@ function PlanetDetails() {
                   </span>
                 </div>
 
-                {/* Distance from Sun */}
+                {/* Distance: From Parent (if moon) or From Sun (if planet) */}
                 <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5">
                   <span className="text-[10px] text-ink-500 uppercase tracking-wider block font-display">
-                    From Sun
+                    {body.parentId ? `From ${body.parentName}` : "From Sun"}
                   </span>
                   <span className="text-ink-100 font-semibold mt-0.5 block font-display">
-                    {body.semiMajorAU ? `${body.semiMajorAU} AU` : "Center"}
+                    {body.parentId
+                      ? `${body.distanceFromParentKm.toLocaleString("en-US")} km`
+                      : body.semiMajorAU
+                        ? `${body.semiMajorAU} AU`
+                        : "Center"}
                   </span>
                 </div>
 
@@ -192,35 +251,39 @@ function PlanetDetails() {
                   </span>
                 </div>
 
-                {/* Day Length */}
-                <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5">
-                  <span className="text-[10px] text-ink-500 uppercase tracking-wider block font-display">
-                    Day Length
-                  </span>
-                  <span className="text-ink-100 font-medium mt-0.5 block font-sans">
-                    {body.dayLength}
-                  </span>
-                </div>
-
-                {/* Year Length */}
-                <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5">
+                {/* Orbital Period */}
+                <div className={body.parentId ? "col-span-2 p-3 rounded-xl bg-white/[0.03] border border-white/5" : "p-3 rounded-xl bg-white/[0.03] border border-white/5"}>
                   <span className="text-[10px] text-ink-500 uppercase tracking-wider block font-display">
                     Orbital Period
                   </span>
                   <span className="text-ink-100 font-medium mt-0.5 block font-sans">
-                    {body.yearLength}
+                    {body.orbitalPeriod ?? body.yearLength}
                   </span>
                 </div>
 
-                {/* Moons */}
-                <div className="col-span-2 p-3 rounded-xl bg-white/[0.03] border border-white/5 flex items-center justify-between">
-                  <span className="text-[10px] text-ink-500 uppercase tracking-wider font-display">
-                    Known Moons
-                  </span>
-                  <span className="text-solar-400 font-bold font-display text-sm">
-                    {body.moonCount ?? 0}
-                  </span>
-                </div>
+                {/* Day Length (for planets) or Orbital Speed (for moons) */}
+                {!body.parentId ? (
+                  <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5">
+                    <span className="text-[10px] text-ink-500 uppercase tracking-wider block font-display">
+                      Day Length
+                    </span>
+                    <span className="text-ink-100 font-medium mt-0.5 block font-sans">
+                      {body.dayLength}
+                    </span>
+                  </div>
+                ) : null}
+
+                {/* Moons Count (only for planets) */}
+                {!body.parentId ? (
+                  <div className="col-span-2 p-3 rounded-xl bg-white/[0.03] border border-white/5 flex items-center justify-between">
+                    <span className="text-[10px] text-ink-500 uppercase tracking-wider font-display">
+                      Known Moons
+                    </span>
+                    <span className="text-solar-400 font-bold font-display text-sm">
+                      {body.moonCount ?? 0}
+                    </span>
+                  </div>
+                ) : null}
               </div>
             </div>
 

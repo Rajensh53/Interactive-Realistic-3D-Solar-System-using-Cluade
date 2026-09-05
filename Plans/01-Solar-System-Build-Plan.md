@@ -410,9 +410,16 @@ Files: [`src/shaders/sunShader.js`](../src/shaders/sunShader.js), [`src/componen
 
 **Checkpoint:** view from "above" — nebula, dust, glowing Sun, everything cinematic; 60+ FPS; zero console errors.
 
-### Phase 8 — Moons
-Io/Europa/Ganymede/Callisto/Titan with colored materials, small orbits per §2.3, all registered. Jupiter's 4 moons are an animation-quality showpiece (fast inner orbits).
-**Checkpoint:** focus Jupiter → 4 moons dance over ~1 min; focus Saturn → Titan + rings.
+### Phase 8 — Moons ✅ DONE
+Files: [`src/data/moons.js`](../src/data/moons.js), [`src/data/planets.js`](../src/data/planets.js), [`src/components/three/Moon.jsx`](../src/components/three/Moon.jsx), [`src/components/three/MoonOrbit.jsx`](../src/components/three/MoonOrbit.jsx), [`src/components/three/Planet.jsx`](../src/components/three/Planet.jsx), [`src/components/ui/PlanetDetails.jsx`](../src/components/ui/PlanetDetails.jsx).
+
+- **Rich NASA scientific moon data:** authentic NASA/JPL data, physical characteristics, and 4 curated facts for Earth's Moon, the 4 Galilean moons of Jupiter (Io, Europa, Ganymede, Callisto), and Saturn's Titan.
+- **Circular moon orbital trails:** elegant `<MoonOrbit />` lines in parent planet coordinate space, demonstrating orbital mechanics and Laplace resonance.
+- **Interactive selection & hit testing:** invisible ergonomic hit proxy spheres, hover scale lerp (1.0 → 1.08), pointer cursor, pulsing selection rings, and floating 3D labels.
+- **Hierarchical camera flight & tracking:** GSAP spherical flight directly to moons with continuous delta tracking as moons rapidly orbit their moving parent planet.
+- **Details panel integration:** dedicated moon view with parent planet links, sibling moon `<` / `>` cycling, and quick-jump Major Moons chips in Jupiter, Saturn, and Earth details panels.
+
+**Checkpoint:** focus Jupiter → 4 moons dance over ~1 min; focus Saturn → Titan + rings; click Europa/Titan → camera focuses with full data panel; zero console errors.
 
 ### Phase 9 — Audio
 `useAudioEngine` per §3.8 + Controls integration (toggle, volume, gesture-gated start, no autoplay).
