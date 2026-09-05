@@ -193,7 +193,9 @@ function Planet({ body }) {
 
         {body.cloudTexture ? <CloudLayer body={body} /> : null}
 
-        {body.ringInner ? <Rings body={body} /> : null}
+        {body.ringInner ? (
+          <Rings body={body} sunDirection={sunDirection} />
+        ) : null}
       </group>
 
       {halo ? (

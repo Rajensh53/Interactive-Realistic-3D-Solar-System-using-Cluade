@@ -385,19 +385,30 @@ Files: [`animationUtils.js`](../src/utils/animationUtils.js), [`useCameraControl
 - **Idle drift.** 8 seconds of no pointer/keyboard activity triggers subtle auto-rotation (`speed: 0.12`). Any interaction immediately halts the drift and resets the timer. Respects `prefers-reduced-motion`.
 
 
-### Phase 6 — UI layer
-- `WelcomeOverlay` (EXPLORE THE SOLAR SYSTEM / START EXPLORING; also starts audio engine).
-- `PlanetDetails.jsx`: right-side glass panel (mobile: bottom sheet) — header (name, category), description, stats grid (diameter, distance from Sun in AU + km, **live distance from Earth** — a 4 Hz throttled ref write, zero re-renders), moons, gravity, temperature, day, year, orbital speed; 4 fun facts; prev/next planet buttons (camera re-travel animation).
-- `PlanetNavigation.jsx`: bottom rail, 8 planets (+ Sun), active state, touch-scrollable on mobile. `Controls.jsx`: sound toggle + volume, orbit lines toggle, labels toggle, credits/about button. `ResetView` button + Esc key.
-- All transitions via Framer Motion `AnimatePresence`: background UI fades out on selection, panel slides in (spec §10 sequence).
-**Checkpoint:** full flow works — welcome → explore → click/clicks any planet → panel animates in → prev/next → back → reset. Looks premium, zero jank.
+### Phase 6 — UI layer ✅ DONE
+Files: [`WelcomeOverlay.jsx`](../src/components/ui/WelcomeOverlay.jsx), [`PlanetDetails.jsx`](../src/components/ui/PlanetDetails.jsx), [`PlanetNavigation.jsx`](../src/components/ui/PlanetNavigation.jsx), [`Controls.jsx`](../src/components/ui/Controls.jsx), [`AboutModal.jsx`](../src/components/ui/AboutModal.jsx), [`App.jsx`](../src/App.jsx), [`usePlanetStore.js`](../src/hooks/usePlanetStore.js).
 
-### Phase 7 — Environment + effects polish
-- Sun upgrade: animated shader surface, corona sprite, flare particles. *(The corona base shell landed in Phase 3 — it now uses the windowed Fresnel falloff from `Atmosphere` instead of flat opacity. The sprite, flares and fbm surface are still outstanding.)*
-- `SpaceEnvironment`: procedural nebula spheres + galaxy sprites + dust + milky-way dome. *(The Milky Way dome landed in Phase 3; nebula, galaxy sprites and dust remain.)*
-- Saturn's ring shadow, deferred here from Phase 3.
-- Effects tuning: bloom/vignette/ACES values per §3.6; travel-only DoF.
-**Checkpoint:** view from "above" — nebula, dust, glowing Sun, everything cinematic; still 60 FPS.
+- **Welcome hero screen.** "EXPLORE THE SOLAR SYSTEM" with glowing "Start Exploring" CTA, smooth fade-out into the system, and user-gesture sound initialization.
+- **Glassmorphism details panel.** Right-side `.glass-panel` sliding in via Framer Motion / Motion. Header with category badge, planet title, prev/next arrows (`<` and `>`), and close button.
+- **Live distance from Earth.** Throttled 4Hz DOM ref update using `distanceBetweenKm(EARTH, body, sceneTime)` with zero React re-renders.
+- **NASA facts & metrics.** Physical stats grid (diameter, gravity, temperatures, orbital periods, moons) and 4 fun facts with glowing bullet points.
+- **Planet selector rail.** Bottom navigation bar featuring all 9 bodies with active state indicators and touch scrolling.
+- **Utility controls bar.** Top-bar controls for Reset View (Esc hint), Orbit Lines toggle, Labels toggle, Audio volume popover, and About modal.
+- **Attribution modal.** CC BY 4.0 licensing attribution for Solar System Scope textures and NASA data notes, plus keyboard guide.
+- **Keyboard navigation.** `Escape` to reset view, `←` and `→` to cycle planets.
+
+
+### Phase 7 — Environment + effects polish ✅ DONE
+Files: [`src/shaders/sunShader.js`](../src/shaders/sunShader.js), [`src/components/three/Sun.jsx`](../src/components/three/Sun.jsx), [`src/components/three/SolarFlares.jsx`](../src/components/three/SolarFlares.jsx), [`src/components/three/SunCoronaSprite.jsx`](../src/components/three/SunCoronaSprite.jsx), [`src/components/three/SpaceEnvironment.jsx`](../src/components/three/SpaceEnvironment.jsx), [`src/components/three/SolarSystem.jsx`](../src/components/three/SolarSystem.jsx), [`src/components/three/Rings.jsx`](../src/components/three/Rings.jsx), [`src/hooks/usePlanetMaterial.js`](../src/hooks/usePlanetMaterial.js), [`src/components/three/PostProcessingEffects.jsx`](../src/components/three/PostProcessingEffects.jsx), [`src/App.jsx`](../src/App.jsx).
+
+- **Thermonuclear Sun surface:** custom `ShaderMaterial` with multi-octave 3D Simplex noise granulation, convective UV swirl, physical limb darkening (Eddington approximation), and active plage boosting for celestial bloom.
+- **Solar flares & coronal loops:** 160 plasma particles with analytical parabolic loop arcs computed entirely on GPU in vertex shader.
+- **Corona glare billboard:** additive camera-facing sprite with dynamic ray streaks and a breathing pulse.
+- **Procedural space environment:** 2 large concentric 3D noise nebula shells in deep violet/magenta and cyan/teal, 2,000 cosmic dust motes with travel parallax, and 4 distant deep-space galaxy sprites.
+- **Saturn ring & planet shadows:** photorealistic shadow wedge cast across the rings on Saturn's night side, and equatorial ring shadow band cast across Saturn's atmosphere.
+- **Cinematic post-processing:** tuned Bloom, viewport Vignette, and travel-only Depth of Field (DoF) active exclusively during camera flight.
+
+**Checkpoint:** view from "above" — nebula, dust, glowing Sun, everything cinematic; 60+ FPS; zero console errors.
 
 ### Phase 8 — Moons
 Io/Europa/Ganymede/Callisto/Titan with colored materials, small orbits per §2.3, all registered. Jupiter's 4 moons are an animation-quality showpiece (fast inner orbits).

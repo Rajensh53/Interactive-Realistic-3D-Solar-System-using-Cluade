@@ -10,28 +10,42 @@ import {
 } from "../../utils/planetUtils.js";
 import { usePlanetStore } from "../../hooks/usePlanetStore.js";
 import { getTexture } from "../../utils/textureUtils.js";
+import {
+  SUN_VERTEX_SHADER,
+  SUN_FRAGMENT_SHADER,
+} from "../../shaders/sunShader.js";
 import Atmosphere from "./Atmosphere.jsx";
 import SelectionRing from "./SelectionRing.jsx";
 import PlanetLabel from "./PlanetLabel.jsx";
+import SunCoronaSprite from "./SunCoronaSprite.jsx";
+import SolarFlares from "./SolarFlares.jsx";
 
 /**
- * The Sun — the scene's only real light source and a selectable central body.
+ * The Sun — the central thermonuclear powerhouse of our solar system.
  *
- * A photospheric granulation map bright enough to trip the bloom threshold, a
- * soft corona shell, interactive hover/selection, and the point light every
- * planet is lit by.
+ * Upgraded in Phase 7 with:
+ * - Animated boiling photosphere (3D Simplex noise granulation + convective UV swirl)
+ * - Radiating coronal glare sprite with dynamic ray streaks
+ * - Plasma prominence flares looping along magnetic field lines
+ * - Windowed Fresnel coronal atmosphere shell
+ * - Interactive hover/selection and point light illumination
  */
 function Sun() {
   const groupRef = useRef(null);
   const spinRef = useRef(null);
+  const shaderMatRef = useRef(null);
   const currentScaleRef = useRef(1.0);
   const surfaceMap = getTexture(SUN.texture);
 
-  const coreColor = useMemo(
-    () =>
-      surfaceMap
-        ? new THREE.Color("#ffffff").multiplyScalar(2.2)
-        : new THREE.Color(SUN.fallbackColor).multiplyScalar(2.6),
+  const uniforms = useMemo(
+    () => ({
+      uTexture: { value: surfaceMap ?? null },
+      uHasTexture: { value: surfaceMap ? 1.0 : 0.0 },
+      uTime: { value: 0 },
+      uColorCore: { value: new THREE.Color("#fff6e0") },
+      uColorMid: { value: new THREE.Color("#ffaa11") },
+      uColorEdge: { value: new THREE.Color("#d93800") },
+    }),
     [surfaceMap],
   );
 
@@ -68,6 +82,9 @@ function Sun() {
   }, []);
 
   useFrame((_, delta) => {
+    // Advance solar surface simulation time
+    uniforms.uTime.value = simulationClock.time;
+
     if (spinRef.current) {
       spinRef.current.rotation.y = SUN.rotationSpeed * simulationClock.time;
     }
@@ -88,6 +105,7 @@ function Sun() {
 
   return (
     <group ref={groupRef}>
+      {/* Photosphere with animated boiling granulation shader */}
       <mesh
         ref={spinRef}
         onPointerEnter={handlePointerEnter}
@@ -95,19 +113,27 @@ function Sun() {
         onClick={handleClick}
       >
         <sphereGeometry args={[SUN.radius, 64, 32]} />
-        <meshBasicMaterial
-          map={surfaceMap ?? null}
-          color={coreColor}
+        <shaderMaterial
+          ref={shaderMatRef}
+          uniforms={uniforms}
+          vertexShader={SUN_VERTEX_SHADER}
+          fragmentShader={SUN_FRAGMENT_SHADER}
           toneMapped={false}
         />
       </mesh>
 
-      {/* Corona */}
+      {/* Coronal prominence flares & plasma loops */}
+      <SolarFlares count={160} sunRadius={SUN.radius} />
+
+      {/* Coronal glare billboard with dynamic ray streaks */}
+      <SunCoronaSprite radius={SUN.radius * 2.8} />
+
+      {/* Outer atmosphere halo */}
       <Atmosphere
         radius={SUN.radius}
         color={SUN.fallbackColor}
         scale={1.35}
-        intensity={0.6}
+        intensity={0.65}
         power={2.2}
         toneMapped={false}
       />
@@ -118,11 +144,10 @@ function Sun() {
       {/* Floating billboarded label */}
       <PlanetLabel body={SUN} yOffset={SUN.radius + 1.2} />
 
-      {/* decay={0} keeps intensity constant across the system */}
+      {/* The system's primary light source */}
       <pointLight intensity={2.2} decay={0} color="#fff2dc" />
     </group>
   );
 }
 
 export default memo(Sun);
-

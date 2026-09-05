@@ -80,4 +80,37 @@ export const usePlanetStore = create((set) => ({
         [key]: value,
       },
     })),
+
+  /** Application experience flow: 'loading' | 'intro' | 'exploring'. */
+  appState: "loading",
+
+  setAppState: (appState) => set({ appState }),
+
+  /** Ambient space audio settings (Phase 9 pre-wired). */
+  audio: {
+    enabled: false,
+    volume: 0.5,
+    started: false,
+  },
+
+  toggleAudio: () =>
+    set((state) => ({
+      audio: { ...state.audio, enabled: !state.audio.enabled },
+    })),
+
+  setVolume: (volume) =>
+    set((state) => ({
+      audio: { ...state.audio, volume },
+    })),
+
+  startAudio: () =>
+    set((state) => ({
+      audio: { ...state.audio, started: true, enabled: true },
+    })),
+
+  /** About / Credits modal state. */
+  aboutOpen: false,
+
+  setAboutOpen: (aboutOpen) => set({ aboutOpen }),
 }));
+

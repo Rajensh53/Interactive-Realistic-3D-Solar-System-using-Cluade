@@ -72,7 +72,46 @@ export function usePlanetMaterial(body, sunDirection) {
       // Without this three.js reuses the unpatched standard program for any
       // other MeshStandardMaterial with the same feature set.
       surface.customProgramCacheKey = () => "planet-night-lights";
-    } else if (body.emissiveBoost) {
+    } else if (body.ringInner) {
+      surface.onBeforeCompile = (shader) => {
+        shader.uniforms.uSunDirection = sunDirection;
+        shader.uniforms.uRingInner = { value: body.radius * body.ringInner };
+        shader.uniforms.uRingOuter = { value: body.radius * body.ringOuter };
+
+        shader.vertexShader = `uniform vec3 uSunDirection;
+          varying vec3 vLocalPos;
+          varying vec3 vLocalSun;\n${shader.vertexShader}`.replace(
+          "#include <begin_vertex>",
+          `#include <begin_vertex>
+           vLocalPos = position;
+           vLocalSun = normalize(uSunDirection * mat3(modelMatrix));`,
+        );
+
+        shader.fragmentShader = `uniform float uRingInner;
+          uniform float uRingOuter;
+          varying vec3 vLocalPos;
+          varying vec3 vLocalSun;\n${shader.fragmentShader}`.replace(
+          "#include <dithering_fragment>",
+          `#include <dithering_fragment>
+           // Ring shadow cast on Saturn's atmosphere:
+           vec3 localSun = normalize(vLocalSun);
+           if (abs(localSun.y) > 0.001) {
+             float tRing = -vLocalPos.y / localSun.y;
+             if (tRing > 0.0) {
+               vec3 hit = vLocalPos + tRing * localSun;
+               float rHit = length(hit.xz);
+               float inRing = smoothstep(uRingInner * 0.98, uRingInner * 1.02, rHit) *
+                              (1.0 - smoothstep(uRingOuter * 0.98, uRingOuter * 1.02, rHit));
+               gl_FragColor.rgb *= 1.0 - inRing * 0.70;
+             }
+           }`,
+        );
+      };
+
+      surface.customProgramCacheKey = () => "planet-ring-shadow";
+    }
+
+    if (body.emissiveBoost) {
       // The outer planets receive very little light at these distances. A trace
       // of self-illumination keeps them from reading as unlit grey spheres,
       // without flattening the terminator the way raised ambient would.

@@ -6,6 +6,7 @@ import Planet from "./Planet.jsx";
 import Orbit from "./Orbit.jsx";
 import StarField from "./StarField.jsx";
 import SkyDome from "./SkyDome.jsx";
+import SpaceEnvironment from "./SpaceEnvironment.jsx";
 import { PLANETS } from "../../data/planets.js";
 import { advanceClock } from "../../utils/planetUtils.js";
 import { useTexturesReady } from "../../utils/textureUtils.js";
@@ -72,6 +73,7 @@ function SolarSystem({ showOrbits, starCount = 10000, onReady }) {
 
       <StarField count={starCount} />
       <SkyDome />
+      <SpaceEnvironment />
     </>
   );
 }
