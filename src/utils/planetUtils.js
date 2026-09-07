@@ -111,6 +111,12 @@ export function orbitalPositionAt(body, sceneTime, out) {
  * This is a simulated configuration, not live ephemeris data.
  */
 export function realPositionAt(body, sceneTime, out) {
+  if (body.id === "sun") {
+    out.x = 0;
+    out.y = 0;
+    out.z = 0;
+    return out;
+  }
   const angle = orbitAngleAt(body, sceneTime);
   const b = semiMinorFromEccentricity(body.semiMajorAU, body.eccentricity);
   out.x = body.semiMajorAU * (Math.cos(angle) + body.eccentricity);

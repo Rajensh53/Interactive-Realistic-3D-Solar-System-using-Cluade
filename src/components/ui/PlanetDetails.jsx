@@ -206,14 +206,20 @@ function PlanetDetails() {
                 {/* Distance: From Parent (if moon) or From Sun (if planet) */}
                 <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5">
                   <span className="text-[10px] text-ink-500 uppercase tracking-wider block font-display">
-                    {body.parentId ? `From ${body.parentName}` : "From Sun"}
+                    {body.parentId
+                      ? `From ${body.parentName}`
+                      : body.id === "sun"
+                        ? "Distance to Earth"
+                        : "From Sun"}
                   </span>
                   <span className="text-ink-100 font-semibold mt-0.5 block font-display">
                     {body.parentId
                       ? `${body.distanceFromParentKm.toLocaleString("en-US")} km`
-                      : body.semiMajorAU
-                        ? `${body.semiMajorAU} AU`
-                        : "Center"}
+                      : body.id === "sun"
+                        ? "149.6M km (1 AU)"
+                        : body.semiMajorAU
+                          ? `${body.semiMajorAU} AU`
+                          : "Center"}
                   </span>
                 </div>
 
@@ -275,8 +281,17 @@ function PlanetDetails() {
                   </div>
                 ) : null}
 
-                {/* Moons Count (only for planets) */}
-                {!body.parentId ? (
+                {/* Moons Count (only for planets) or Galactic Core Distance (for Sun) */}
+                {body.id === "sun" ? (
+                  <div className="col-span-2 p-3 rounded-xl bg-white/[0.03] border border-white/5 flex items-center justify-between">
+                    <span className="text-[10px] text-ink-500 uppercase tracking-wider font-display">
+                      Galactic Core Distance
+                    </span>
+                    <span className="text-solar-400 font-bold font-display text-xs sm:text-sm">
+                      ~26,000 light-years (8 kpc)
+                    </span>
+                  </div>
+                ) : !body.parentId ? (
                   <div className="col-span-2 p-3 rounded-xl bg-white/[0.03] border border-white/5 flex items-center justify-between">
                     <span className="text-[10px] text-ink-500 uppercase tracking-wider font-display">
                       Known Moons

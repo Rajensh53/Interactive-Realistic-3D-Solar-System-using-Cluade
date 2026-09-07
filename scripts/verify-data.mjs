@@ -115,7 +115,7 @@ check("orbit periods strictly increase outward", times.every((t, i) => i === 0 |
 check("Earth year is exactly 45 s", Math.abs(orbitTimeFromPeriod(1) - 45) < 1e-9);
 
 console.log("\n=== Physical distance readout ===");
-for (const id of ["mercury", "mars", "jupiter", "neptune"]) {
+for (const id of ["sun", "mercury", "mars", "jupiter", "neptune"]) {
   const p = getBodyById(id);
   let min = Infinity;
   let max = -Infinity;
@@ -124,9 +124,10 @@ for (const id of ["mercury", "mars", "jupiter", "neptune"]) {
     min = Math.min(min, d);
     max = Math.max(max, d);
   }
-  // Sanity: distance can never exceed the sum of the two orbital radii.
-  const ceiling = (p.semiMajorAU + EARTH.semiMajorAU) * 1.1 * AU_KM;
-  const ok = Number.isFinite(min) && min > 0 && max < ceiling;
+  // Sanity: distance can never exceed the sum of the two orbital radii (or Earth AU for Sun).
+  const radiusAU = p.semiMajorAU ?? 0;
+  const ceiling = (radiusAU + EARTH.semiMajorAU) * 1.1 * AU_KM;
+  const ok = Number.isFinite(min) && min > 0 && max <= ceiling;
   check(
     `${p.name.padEnd(8)} distance from Earth`,
     ok,
