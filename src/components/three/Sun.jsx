@@ -14,20 +14,18 @@ import {
   SUN_VERTEX_SHADER,
   SUN_FRAGMENT_SHADER,
 } from "../../shaders/sunShader.js";
-import Atmosphere from "./Atmosphere.jsx";
 import PlanetLabel from "./PlanetLabel.jsx";
 import SunCoronaSprite from "./SunCoronaSprite.jsx";
-import SolarFlares from "./SolarFlares.jsx";
 
 /**
  * The Sun — the central thermonuclear powerhouse of our solar system.
  *
- * Upgraded in Phase 7 with:
- * - Animated boiling photosphere (3D Simplex noise granulation + convective UV swirl)
- * - Radiating coronal glare sprite with dynamic ray streaks
- * - Plasma prominence flares looping along magnetic field lines
- * - Windowed Fresnel coronal atmosphere shell
- * - Interactive hover/selection and point light illumination
+ * Implements a photorealistic astronomical star:
+ * - High-contrast NASA SDO photosphere with boiling convection granulation
+ * - Physical differential rotation and Eddington limb darkening
+ * - Active magnetic plages and fiery chromospheric rim fringe
+ * - Grand multi-harmonic coronal halo and magnetic solar wind streamers
+ * - Interactive hover/selection and primary system point light
  */
 function Sun() {
   const groupRef = useRef(null);
@@ -35,6 +33,11 @@ function Sun() {
   const shaderMatRef = useRef(null);
   const currentScaleRef = useRef(1.0);
   const surfaceMap = getTexture(SUN.texture);
+
+  if (surfaceMap) {
+    surfaceMap.wrapS = THREE.RepeatWrapping;
+    surfaceMap.wrapT = THREE.ClampToEdgeWrapping;
+  }
 
   const uniforms = useMemo(
     () => ({
@@ -121,27 +124,14 @@ function Sun() {
         />
       </mesh>
 
-      {/* Coronal prominence flares & plasma loops */}
-      <SolarFlares count={160} sunRadius={SUN.radius} />
-
-      {/* Coronal glare billboard with dynamic ray streaks */}
-      <SunCoronaSprite radius={SUN.radius * 2.8} />
-
-      {/* Outer atmosphere halo */}
-      <Atmosphere
-        radius={SUN.radius}
-        color={SUN.fallbackColor}
-        scale={1.35}
-        intensity={0.65}
-        power={2.2}
-        toneMapped={false}
-      />
+      {/* Photorealistic radiating coronal glare billboard with multi-harmonic streamers */}
+      <SunCoronaSprite radius={SUN.radius * 3.8} />
 
       {/* Floating billboarded label */}
       <PlanetLabel body={SUN} yOffset={SUN.radius + 1.2} />
 
       {/* The system's primary light source */}
-      <pointLight intensity={2.2} decay={0} color="#fff2dc" />
+      <pointLight intensity={2.4} decay={0} color="#fff6ea" />
     </group>
   );
 }

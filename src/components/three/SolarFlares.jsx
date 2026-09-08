@@ -1,132 +1,221 @@
 import { memo, useEffect, useMemo, useRef } from "react";
-import { useFrame, useThree } from "@react-three/fiber";
+import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
 /**
- * Prominence Flares & Coronal Plasma Loops
+ * Photorealistic Magnetic Prominence Loops
  *
- * Simulates plasma erupting and arching along solar magnetic loops.
- * Computed analytically via GPU vertex shader from base anchors and heights,
- * requiring zero per-frame CPU allocation.
+ * Simulates real solar prominences (coronal loops):
+ * - Continuous magnetic plasma ribbons anchored in active solar latitude belts
+ * - Arches follow magnetic field trajectories, rising up to 1.35x solar radius
+ * - Animated plasma filament flow along the loop
+ * - Zero isolated point-sprites or floating balls — pure continuous incandescent plasma
  */
 
-const FLARE_VERTEX_SHADER = /* glsl */ `
-  attribute vec3 aBasePos;
-  attribute vec3 aArcTangent;
-  attribute float aMaxAltitude;
+const PROMINENCE_VERTEX_SHADER = /* glsl */ `
+  attribute float aProgress; // [0, 1] along the arch
+  attribute float aSide;     // -1 or +1 across ribbon width
   attribute float aPhase;
-  attribute float aDuration;
-  attribute float aSize;
+  attribute float aHeight;
+  attribute vec3 aAnchorA;
+  attribute vec3 aAnchorB;
 
   uniform float uTime;
-  uniform float uPixelRatio;
-
-  varying float vAlpha;
-  varying vec3 vColor;
+  varying vec2 vUv;
+  varying float vPhase;
 
   void main() {
-    // Current loop progression in [0, 1]
-    float t = mod(uTime + aPhase, aDuration) / aDuration;
+    vUv = uv;
+    vPhase = aPhase;
 
-    // Parabolic arc height: 4 * t * (1 - t) peaks at 1.0 when t = 0.5
-    float arcFactor = 4.0 * t * (1.0 - t);
-    float altitude = aMaxAltitude * arcFactor;
+    float p = aProgress;
 
-    // Displace outward along surface normal + curve along tangent
-    vec3 normal = normalize(aBasePos);
-    vec3 pos = aBasePos + normal * altitude + aArcTangent * (sin(t * 3.14159) * 0.4);
+    // Spherical interpolation between footpoints
+    vec3 basePos = normalize(mix(aAnchorA, aAnchorB, p));
 
-    // Alpha rises then dims out at landing
-    vAlpha = smoothstep(0.0, 0.25, t) * smoothstep(1.0, 0.65, t) * 0.85;
+    // Magnetic arch curve: sin(p * PI) peaks at midpoint
+    float archCurve = sin(p * 3.14159265);
+    
+    // Dynamic plasma respiration
+    float pulse = 1.0 + 0.08 * sin(uTime * 1.6 + aPhase);
+    float altitude = aHeight * archCurve * pulse;
 
-    // Color shift: hotter/brighter at peak altitude
-    vec3 baseColor = vec3(1.0, 0.35, 0.05); // Deep fiery orange
-    vec3 peakColor = vec3(1.0, 0.92, 0.65); // White-gold peak
-    vColor = mix(baseColor, peakColor, arcFactor * arcFactor);
+    vec3 archPos = basePos * (length(aAnchorA) + altitude);
 
-    vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
-    gl_PointSize = aSize * uPixelRatio * (200.0 / -mvPosition.z);
-    gl_Position = projectionMatrix * mvPosition;
+    // Transform position to view space
+    vec4 mvPos = modelViewMatrix * vec4(archPos, 1.0);
+
+    // Determine 2D screen tangent for perfect camera alignment
+    vec3 nextBase = normalize(mix(aAnchorA, aAnchorB, min(p + 0.04, 1.0)));
+    float nextAlt = aHeight * sin(min(p + 0.04, 1.0) * 3.14159265) * pulse;
+    vec4 nextMvPos = modelViewMatrix * vec4(nextBase * (length(aAnchorA) + nextAlt), 1.0);
+
+    vec2 dir2D = normalize(nextMvPos.xy - mvPos.xy + vec2(0.0001));
+    vec2 normal2D = vec2(-dir2D.y, dir2D.x);
+
+    // Delicate, authentic ribbon width in view space (fine filament)
+    float width = (0.022 + 0.038 * archCurve) * aSide;
+    mvPos.xy += normal2D * width;
+
+    gl_Position = projectionMatrix * mvPos;
   }
 `;
 
-const FLARE_FRAGMENT_SHADER = /* glsl */ `
-  varying float vAlpha;
-  varying vec3 vColor;
+const PROMINENCE_FRAGMENT_SHADER = /* glsl */ `
+  uniform float uTime;
+  varying vec2 vUv;
+  varying float vPhase;
 
   void main() {
-    float d = length(gl_PointCoord - vec2(0.5));
-    if (d > 0.5) discard;
+    float across = abs(vUv.y - 0.5) * 2.0;
+    float along = vUv.x;
 
-    float glow = smoothstep(0.5, 0.05, d) * vAlpha;
-    gl_FragColor = vec4(vColor * 2.2, glow);
+    // Moving plasma flow along magnetic lines
+    float flow = sin(along * 35.0 - uTime * 2.8 + vPhase) * 0.5 + 0.5;
+    float filament = 0.7 + 0.3 * flow;
+
+    // Soft Gaussian core across ribbon width
+    float edgeFade = exp(-across * across * 3.2);
+
+    // Fade out smoothly at footpoints on the surface
+    float footpointFade = sin(along * 3.14159265);
+    float alpha = edgeFade * footpointFade * filament * 0.85;
+
+    if (alpha < 0.01) discard;
+
+    // Solar plasma palette:
+    vec3 fieryOrange = vec3(1.0, 0.28, 0.03);
+    vec3 solarAmber  = vec3(1.0, 0.72, 0.16);
+    vec3 whiteGold   = vec3(1.0, 0.96, 0.85);
+
+    vec3 col = mix(fieryOrange, solarAmber, footpointFade * filament);
+    col = mix(col, whiteGold, (1.0 - across) * footpointFade * 0.4);
+
+    gl_FragColor = vec4(col * 1.6, alpha);
   }
 `;
 
-function SolarFlares({ count = 160, sunRadius = 5.0 }) {
+function SolarFlares({ count = 22, sunRadius = 5.0 }) {
   const materialRef = useRef(null);
-  const { gl } = useThree();
 
   const geometry = useMemo(() => {
-    const basePositions = new Float32Array(count * 3);
-    const arcTangents = new Float32Array(count * 3);
-    const maxAltitudes = new Float32Array(count);
-    const phases = new Float32Array(count);
-    const durations = new Float32Array(count);
-    const sizes = new Float32Array(count);
+    const SEGMENTS_PER_LOOP = 24;
+    const VERTS_PER_LOOP = (SEGMENTS_PER_LOOP + 1) * 2;
+    const INDICES_PER_LOOP = SEGMENTS_PER_LOOP * 6;
 
-    // Seeded distribution concentrated in active solar latitude belts (±15° to ±40°)
-    for (let i = 0; i < count; i++) {
-      // Pick active latitude
-      const latSign = Math.random() > 0.5 ? 1 : -1;
-      const lat = latSign * (0.25 + Math.random() * 0.45); // Radians ~14° to 40°
-      const lon = Math.random() * Math.PI * 2;
+    const totalVerts = count * VERTS_PER_LOOP;
+    const totalIndices = count * INDICES_PER_LOOP;
 
-      const cosLat = Math.cos(lat);
-      const sinLat = Math.sin(lat);
+    const positions = new Float32Array(totalVerts * 3);
+    const uvs = new Float32Array(totalVerts * 2);
+    const aProgress = new Float32Array(totalVerts);
+    const aSide = new Float32Array(totalVerts);
+    const aPhase = new Float32Array(totalVerts);
+    const aHeight = new Float32Array(totalVerts);
+    const aAnchorA = new Float32Array(totalVerts * 3);
+    const aAnchorB = new Float32Array(totalVerts * 3);
 
-      const nx = cosLat * Math.cos(lon);
-      const ny = sinLat;
-      const nz = cosLat * Math.sin(lon);
+    const indices = new Uint16Array(totalIndices);
 
-      basePositions[i * 3] = nx * sunRadius;
-      basePositions[i * 3 + 1] = ny * sunRadius;
-      basePositions[i * 3 + 2] = nz * sunRadius;
+    let vOffset = 0;
+    let iOffset = 0;
 
-      // Tangent vector perpendicular to normal for magnetic loop curling
-      const arbitrary = Math.abs(ny) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
-      const normalVec = new THREE.Vector3(nx, ny, nz);
-      const tangentVec = new THREE.Vector3().crossVectors(normalVec, arbitrary).normalize();
+    for (let loop = 0; loop < count; loop++) {
+      // Magnetic active latitude belts: ±15° to ±45°
+      const latSign = loop % 2 === 0 ? 1 : -1;
+      const baseLat = latSign * (0.24 + (loop / count) * 0.5);
+      const baseLon = (loop / count) * Math.PI * 2 + (loop * 1.4);
 
-      arcTangents[i * 3] = tangentVec.x;
-      arcTangents[i * 3 + 1] = tangentVec.y;
-      arcTangents[i * 3 + 2] = tangentVec.z;
+      // Footpoint span: arch covers 10° to 22°
+      const spanAngle = 0.18 + Math.sin(loop * 2.3) * 0.1;
+      const height = 0.35 + Math.abs(Math.sin(loop * 3.7)) * 0.65; // 0.35 to 1.0 units (realistic heights)
+      const phase = loop * 1.73;
 
-      maxAltitudes[i] = 0.4 + Math.random() * 1.8; // Peak altitude above surface
-      phases[i] = Math.random() * 10;
-      durations[i] = 2.4 + Math.random() * 3.2; // 2.4s to 5.6s per loop
-      sizes[i] = 1.6 + Math.random() * 2.6;
+      // Calculate Footpoint A
+      const latA = baseLat;
+      const lonA = baseLon;
+      const pAx = Math.cos(latA) * Math.cos(lonA) * sunRadius;
+      const pAy = Math.sin(latA) * sunRadius;
+      const pAz = Math.cos(latA) * Math.sin(lonA) * sunRadius;
+
+      // Calculate Footpoint B (displaced along latitude & longitude)
+      const latB = baseLat + Math.sin(loop * 1.5) * 0.1;
+      const lonB = baseLon + spanAngle;
+      const pBx = Math.cos(latB) * Math.cos(lonB) * sunRadius;
+      const pBy = Math.sin(latB) * sunRadius;
+      const pBz = Math.cos(latB) * Math.sin(lonB) * sunRadius;
+
+      const loopStartVert = vOffset;
+
+      for (let s = 0; s <= SEGMENTS_PER_LOOP; s++) {
+        const p = s / SEGMENTS_PER_LOOP;
+
+        // Two vertices per segment (-width and +width)
+        for (let side = -1; side <= 1; side += 2) {
+          const idx = vOffset;
+
+          // Initial dummy position (computed in vertex shader)
+          positions[idx * 3] = pAx;
+          positions[idx * 3 + 1] = pAy;
+          positions[idx * 3 + 2] = pAz;
+
+          uvs[idx * 2] = p;
+          uvs[idx * 2 + 1] = side === -1 ? 0.0 : 1.0;
+
+          aProgress[idx] = p;
+          aSide[idx] = side;
+          aPhase[idx] = phase;
+          aHeight[idx] = height;
+
+          aAnchorA[idx * 3] = pAx;
+          aAnchorA[idx * 3 + 1] = pAy;
+          aAnchorA[idx * 3 + 2] = pAz;
+
+          aAnchorB[idx * 3] = pBx;
+          aAnchorB[idx * 3 + 1] = pBy;
+          aAnchorB[idx * 3 + 2] = pBz;
+
+          vOffset++;
+        }
+
+        // Indices for quad strip
+        if (s < SEGMENTS_PER_LOOP) {
+          const v0 = loopStartVert + s * 2;
+          const v1 = v0 + 1;
+          const v2 = v0 + 2;
+          const v3 = v0 + 3;
+
+          indices[iOffset++] = v0;
+          indices[iOffset++] = v1;
+          indices[iOffset++] = v2;
+
+          indices[iOffset++] = v2;
+          indices[iOffset++] = v1;
+          indices[iOffset++] = v3;
+        }
+      }
     }
 
     const geo = new THREE.BufferGeometry();
-    geo.setAttribute("position", new THREE.BufferAttribute(basePositions, 3));
-    geo.setAttribute("aBasePos", new THREE.BufferAttribute(basePositions, 3));
-    geo.setAttribute("aArcTangent", new THREE.BufferAttribute(arcTangents, 3));
-    geo.setAttribute("aMaxAltitude", new THREE.BufferAttribute(maxAltitudes, 1));
-    geo.setAttribute("aPhase", new THREE.BufferAttribute(phases, 1));
-    geo.setAttribute("aDuration", new THREE.BufferAttribute(durations, 1));
-    geo.setAttribute("aSize", new THREE.BufferAttribute(sizes, 1));
+    geo.setAttribute("position", new THREE.BufferAttribute(positions, 3));
+    geo.setAttribute("uv", new THREE.BufferAttribute(uvs, 2));
+    geo.setAttribute("aProgress", new THREE.BufferAttribute(aProgress, 1));
+    geo.setAttribute("aSide", new THREE.BufferAttribute(aSide, 1));
+    geo.setAttribute("aPhase", new THREE.BufferAttribute(aPhase, 1));
+    geo.setAttribute("aHeight", new THREE.BufferAttribute(aHeight, 1));
+    geo.setAttribute("aAnchorA", new THREE.BufferAttribute(aAnchorA, 3));
+    geo.setAttribute("aAnchorB", new THREE.BufferAttribute(aAnchorB, 3));
+    geo.setIndex(new THREE.BufferAttribute(indices, 1));
 
-    geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), sunRadius * 2.5);
+    geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(), sunRadius * 2.2);
     return geo;
   }, [count, sunRadius]);
 
   const uniforms = useMemo(
     () => ({
       uTime: { value: 0 },
-      uPixelRatio: { value: gl.getPixelRatio() },
     }),
-    [gl],
+    [],
   );
 
   useEffect(() => () => geometry.dispose(), [geometry]);
@@ -136,17 +225,18 @@ function SolarFlares({ count = 160, sunRadius = 5.0 }) {
   });
 
   return (
-    <points geometry={geometry} frustumCulled={false}>
+    <mesh geometry={geometry} frustumCulled={false} renderOrder={2}>
       <shaderMaterial
         ref={materialRef}
         uniforms={uniforms}
-        vertexShader={FLARE_VERTEX_SHADER}
-        fragmentShader={FLARE_FRAGMENT_SHADER}
+        vertexShader={PROMINENCE_VERTEX_SHADER}
+        fragmentShader={PROMINENCE_FRAGMENT_SHADER}
         transparent
         depthWrite={false}
         blending={THREE.AdditiveBlending}
+        side={THREE.DoubleSide}
       />
-    </points>
+    </mesh>
   );
 }
 
