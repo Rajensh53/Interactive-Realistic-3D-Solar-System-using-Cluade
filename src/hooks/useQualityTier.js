@@ -18,7 +18,7 @@ export const TIER_CONFIG = {
     starCount: 10000,
     dustCount: 2000,
     nebulaShells: 2,
-    enableDoF: true,
+    enableDoF: false,
     anisotropy: 8,
     bloomMipmapBlur: true,
   },
@@ -82,13 +82,16 @@ export function detectInitialTier() {
  * QualityMonitor Component
  *
  * Sits inside the Canvas render loop without causing React re-renders.
- * Continuously monitors frame time delta over a rolling 120-frame buffer.
- * If sustained frame duration exceeds 22ms (< 45 FPS), it gracefully steps
+ * Continuously monitors frame time delta over a rolling buffer.
+ * Only active while exploring (never while intro overlay or assets are initializing).
+ * If sustained frame duration exceeds 28ms (< 35 FPS), it gracefully steps
  * down the quality tier (High -> Medium -> Low).
  */
 export function QualityMonitor() {
   const frameBufferRef = useRef([]);
   const frameCountRef = useRef(0);
+  const warmupFramesRef = useRef(0);
+  const cooldownRef = useRef(0);
 
   // Initialize initial tier on mount
   useEffect(() => {
@@ -102,6 +105,27 @@ export function QualityMonitor() {
   }, []);
 
   useFrame((_, delta) => {
+    const appState = usePlanetStore.getState().appState;
+    // Never evaluate quality tier during intro or loading screens
+    if (appState !== "exploring") {
+      frameBufferRef.current.length = 0;
+      frameCountRef.current = 0;
+      warmupFramesRef.current = 0;
+      return;
+    }
+
+    // Allow 180 frames (~3s) of warmup after entering exploration before measuring
+    if (warmupFramesRef.current < 180) {
+      warmupFramesRef.current++;
+      return;
+    }
+
+    // If in cooldown after a tier step-down, wait for performance to settle
+    if (cooldownRef.current > 0) {
+      cooldownRef.current--;
+      return;
+    }
+
     // Collect delta samples (clamped to realistic range)
     if (delta > 0.001 && delta < 0.2) {
       const buffer = frameBufferRef.current;
@@ -113,8 +137,8 @@ export function QualityMonitor() {
         buffer.shift();
       }
 
-      // Every 120 frames (approx 2 to 3 seconds), evaluate performance
-      if (frameCountRef.current >= 120 && buffer.length >= 60) {
+      // Every 150 frames (~2.5 to 3.5 seconds), evaluate performance
+      if (frameCountRef.current >= 150 && buffer.length >= 80) {
         frameCountRef.current = 0;
 
         const sum = buffer.reduce((acc, v) => acc + v, 0);
@@ -122,22 +146,24 @@ export function QualityMonitor() {
 
         const currentTier = usePlanetStore.getState().qualityTier;
 
-        // Threshold: > 22ms per frame corresponds to < 45 FPS
-        if (avgFrameMs > 22.0) {
+        // Threshold: > 28ms per frame corresponds to < 35 FPS sustained
+        if (avgFrameMs > 28.0) {
           if (currentTier === "high") {
-            console.warn(
-              `[QualityMonitor] Avg frame time ${avgFrameMs.toFixed(1)}ms (>22ms) detected. Gracefully stepping down to Medium tier.`,
+            console.info(
+              `[QualityMonitor] Sustained frame time ${avgFrameMs.toFixed(1)}ms (>28ms) detected. Stepping to Medium tier.`,
             );
             usePlanetStore.getState().setQualityTier("medium");
             setAnisotropy(TIER_CONFIG.medium.anisotropy);
-            buffer.length = 0; // Reset buffer to let new tier settle
+            buffer.length = 0;
+            cooldownRef.current = 300; // 5-second cooldown
           } else if (currentTier === "medium") {
-            console.warn(
-              `[QualityMonitor] Avg frame time ${avgFrameMs.toFixed(1)}ms (>22ms) detected. Gracefully stepping down to Low tier.`,
+            console.info(
+              `[QualityMonitor] Sustained frame time ${avgFrameMs.toFixed(1)}ms (>28ms) detected. Stepping to Low tier.`,
             );
             usePlanetStore.getState().setQualityTier("low");
             setAnisotropy(TIER_CONFIG.low.anisotropy);
             buffer.length = 0;
+            cooldownRef.current = 300;
           }
         }
       }

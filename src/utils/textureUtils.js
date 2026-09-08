@@ -47,7 +47,6 @@ export function setAnisotropy(value) {
   for (const entry of entries.values()) {
     if (entry.texture) {
       entry.texture.anisotropy = value;
-      entry.texture.needsUpdate = true;
     }
   }
 }

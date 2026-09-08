@@ -42,6 +42,7 @@ export function useIdleDrift(controlsRef) {
         const store = usePlanetStore.getState();
         const controls = controlsRef.current;
         if (
+          store.appState === "exploring" &&
           store.cameraPhase === "idle" &&
           store.settings.idleDrift &&
           controls
@@ -51,6 +52,13 @@ export function useIdleDrift(controlsRef) {
         }
       }, IDLE_TIMEOUT_MS);
     }
+
+    // Subscribe to store to stop drift if camera phase or app state changes
+    const unsub = usePlanetStore.subscribe((state) => {
+      if (state.appState !== "exploring" || state.cameraPhase !== "idle" || !state.settings.idleDrift) {
+        stopDrift();
+      }
+    });
 
     // Attach interaction listeners
     const events = [
@@ -68,6 +76,7 @@ export function useIdleDrift(controlsRef) {
     resetTimer();
 
     return () => {
+      unsub();
       if (timerRef.current) clearTimeout(timerRef.current);
       events.forEach((ev) => window.removeEventListener(ev, resetTimer));
       stopDrift();

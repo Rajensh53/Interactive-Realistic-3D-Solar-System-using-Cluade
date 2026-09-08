@@ -1,4 +1,4 @@
-import { memo, useEffect } from "react";
+import { memo, useEffect, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 
 import Sun from "./Sun.jsx";
@@ -50,10 +50,12 @@ function SolarSystem({ showOrbits, starCount, onReady }) {
   const tierConfig = TIER_CONFIG[qualityTier] || TIER_CONFIG.high;
   const renderOrbits = showOrbits ?? orbitsEnabled;
 
-  // Runs only once the boundary above has resolved, which makes it an honest
-  // "assets are in, the scene can be shown" signal for the loading screen.
+  const hasFiredReadyRef = useRef(false);
   useEffect(() => {
-    onReady?.();
+    if (!hasFiredReadyRef.current) {
+      hasFiredReadyRef.current = true;
+      onReady?.();
+    }
   }, [onReady]);
 
   return (

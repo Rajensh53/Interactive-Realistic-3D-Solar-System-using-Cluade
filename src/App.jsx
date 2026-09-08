@@ -23,7 +23,7 @@ import { preloadTextures } from "./utils/textureUtils.js";
 import { installDevBridge } from "./utils/devBridge.js";
 import { usePlanetStore } from "./hooks/usePlanetStore.js";
 import { useAudioEngine } from "./hooks/useAudioEngine.js";
-import { QualityMonitor, TIER_CONFIG } from "./hooks/useQualityTier.js";
+import { QualityMonitor } from "./hooks/useQualityTier.js";
 import { getAdjacentPlanetId } from "./data/planets.js";
 
 const { OVERVIEW_CAMERA } = SCENE;
@@ -41,13 +41,14 @@ export default function App() {
   useAudioEngine();
 
   const [assetsReady, setAssetsReady] = useState(false);
-  const qualityTier = usePlanetStore((s) => s.qualityTier) || "high";
-  const tierConfig = TIER_CONFIG[qualityTier] || TIER_CONFIG.high;
 
   const handleReady = useCallback(() => {
     setAssetsReady(true);
-    // Transition to intro screen once assets have settled
-    usePlanetStore.getState().setAppState("intro");
+    // Transition to intro screen only if still loading
+    const current = usePlanetStore.getState().appState;
+    if (current === "loading") {
+      usePlanetStore.getState().setAppState("intro");
+    }
   }, []);
 
   // Global keyboard shortcuts (Esc to reset/close, Left/Right arrows to cycle planets)
@@ -87,7 +88,7 @@ export default function App() {
     <main className="relative h-full w-full overflow-hidden bg-space-950 select-none">
       <SceneErrorBoundary>
         <Canvas
-          dpr={tierConfig.dpr}
+          dpr={[1, 2]}
           camera={{
             position: [OVERVIEW_CAMERA.x, OVERVIEW_CAMERA.y, OVERVIEW_CAMERA.z],
             fov: 60,

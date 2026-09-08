@@ -27,7 +27,7 @@ function WelcomeOverlay() {
       {isVisible ? (
         <motion.div
           key="welcome-overlay"
-          className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-space-950/40 backdrop-blur-sm pointer-events-auto"
+          className="fixed inset-0 z-40 flex items-center justify-center p-4 bg-gradient-to-b from-space-950/85 via-space-950/70 to-space-950/90 pointer-events-auto"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0, scale: 0.98 }}

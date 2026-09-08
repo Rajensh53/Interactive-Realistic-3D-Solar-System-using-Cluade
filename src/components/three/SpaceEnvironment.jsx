@@ -15,23 +15,14 @@ import * as THREE from "three";
 // 1. NEBULA SHADERS
 //
 const NEBULA_VERTEX_SHADER = /* glsl */ `
-  varying vec3 vWorldPosition;
-
-  void main() {
-    vec4 worldPos = modelMatrix * vec4(position, 1.0);
-    vWorldPosition = worldPos.xyz;
-    gl_Position = projectionMatrix * viewMatrix * worldPos;
-  }
-`;
-
-const NEBULA_FRAGMENT_SHADER = /* glsl */ `
   uniform float uTime;
   uniform vec3 uColorA;
   uniform vec3 uColorB;
   uniform float uOpacity;
   uniform float uScale;
 
-  varying vec3 vWorldPosition;
+  varying vec3 vColor;
+  varying float vDensity;
 
   // Compact 3D noise
   vec4 permute(vec4 x) { return mod(((x * 34.0) + 1.0) * x, 289.0); }
@@ -98,22 +89,32 @@ const NEBULA_FRAGMENT_SHADER = /* glsl */ `
   }
 
   void main() {
-    vec3 p = vWorldPosition * uScale;
+    vec4 worldPos = modelMatrix * vec4(position, 1.0);
+    vec3 p = worldPos.xyz * uScale;
 
-    // Fractional Brownian Motion (3 octaves)
+    // Fractional Brownian Motion computed per-vertex for extreme fillrate efficiency
     float n1 = snoise(p + vec3(0.0, uTime * 0.005, 0.0));
     float n2 = snoise(p * 2.1 - vec3(uTime * 0.008, 0.0, 0.0)) * 0.5;
     float n3 = snoise(p * 4.2 + vec3(0.0, 0.0, uTime * 0.01)) * 0.25;
 
-    float cloud = (n1 + n2 + n3) / 1.75; // in [-1, 1]
-    cloud = cloud * 0.5 + 0.5;           // in [0, 1]
+    float cloud = (n1 + n2 + n3) / 1.75;
+    cloud = cloud * 0.5 + 0.5;
 
-    // Create organic clumps and deep dark cosmic voids
     float density = smoothstep(0.48, 0.82, cloud);
-    if (density <= 0.001) discard;
+    vDensity = density * uOpacity;
+    vColor = mix(uColorA, uColorB, smoothstep(0.55, 0.88, cloud));
 
-    vec3 color = mix(uColorA, uColorB, smoothstep(0.55, 0.88, cloud));
-    gl_FragColor = vec4(color, density * uOpacity);
+    gl_Position = projectionMatrix * viewMatrix * worldPos;
+  }
+`;
+
+const NEBULA_FRAGMENT_SHADER = /* glsl */ `
+  varying vec3 vColor;
+  varying float vDensity;
+
+  void main() {
+    if (vDensity <= 0.001) discard;
+    gl_FragColor = vec4(vColor, vDensity);
   }
 `;
 
