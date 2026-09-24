@@ -9,6 +9,9 @@ import { DEG2RAD, TRUE_SCALE } from "../utils/planetUtils.js";
  * - Saturn: Titan
  *
  * Real physical characteristics, authentic descriptions, and curated NASA facts.
+ *
+ * No spin rate: every moon here is tidally locked, so it turns exactly once
+ * per orbit and <Moon> derives its spin from the orbit angle.
  * Sources: NASA Science moon pages, JPL SSD satellite physical parameters.
  */
 
@@ -27,7 +30,6 @@ const MOON_SOURCE = [
     radius: 0.27,
     orbitRadius: 2.3,
     orbitTimeSeconds: 45,
-    rotationSpeed: 0.08,
     inclinationDeg: 5.14,
     initialAngleDeg: 45,
 
@@ -72,7 +74,6 @@ const MOON_SOURCE = [
     radius: 0.29,
     orbitRadius: 4.9,
     orbitTimeSeconds: 20,
-    rotationSpeed: 0.1,
     inclinationDeg: 0.04,
     initialAngleDeg: 0,
 
@@ -116,7 +117,6 @@ const MOON_SOURCE = [
     radius: 0.25,
     orbitRadius: 5.5,
     orbitTimeSeconds: 28,
-    rotationSpeed: 0.1,
     inclinationDeg: 0.47,
     initialAngleDeg: 110,
 
@@ -160,7 +160,6 @@ const MOON_SOURCE = [
     radius: 0.41,
     orbitRadius: 6.5,
     orbitTimeSeconds: 40,
-    rotationSpeed: 0.09,
     inclinationDeg: 0.2,
     initialAngleDeg: 220,
 
@@ -203,7 +202,6 @@ const MOON_SOURCE = [
     radius: 0.38,
     orbitRadius: 7.8,
     orbitTimeSeconds: 60,
-    rotationSpeed: 0.08,
     inclinationDeg: 0.19,
     initialAngleDeg: 300,
 
@@ -246,7 +244,6 @@ const MOON_SOURCE = [
     radius: 0.4,
     orbitRadius: 5.1,
     orbitTimeSeconds: 55,
-    rotationSpeed: 0.08,
     inclinationDeg: 0.33,
     initialAngleDeg: 160,
 

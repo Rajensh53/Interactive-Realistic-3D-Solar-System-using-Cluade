@@ -36,10 +36,47 @@ export function installDevBridge() {
       return simulationClock.time;
     },
 
-    /** Pause/resume without stopping the render loop. */
+    /**
+     * Set orbit and rotation speed together. 0 pauses (the store clamps speeds
+     * to 0.1×-100×, so pausing is the only way to stop).
+     */
     setTimeScale(scale) {
-      simulationClock.timeScale = scale;
-      return simulationClock.timeScale;
+      const store = usePlanetStore.getState();
+      if (scale === 0) {
+        store.setPaused(true);
+      } else {
+        store.setPaused(false);
+        store.setOrbitSpeed(scale);
+        store.setRotationSpeed(scale);
+      }
+      return usePlanetStore.getState().simulation;
+    },
+
+    /** Independent speeds, as the Speed panel sets them. */
+    setSpeeds({ orbit, rotation } = {}) {
+      const store = usePlanetStore.getState();
+      if (orbit != null) store.setOrbitSpeed(orbit);
+      if (rotation != null) store.setRotationSpeed(rotation);
+      return usePlanetStore.getState().simulation;
+    },
+
+    pause() {
+      usePlanetStore.getState().setPaused(true);
+      return true;
+    },
+
+    resume() {
+      usePlanetStore.getState().setPaused(false);
+      return false;
+    },
+
+    /** Store settings plus what the clocks actually hold. */
+    getSpeeds() {
+      const { orbitScale, spinScale, paused, time, spinTime } = simulationClock;
+      return {
+        ...usePlanetStore.getState().simulation,
+        clock: { orbitScale, spinScale, paused, time, spinTime },
+      };
     },
 
     /** What the registry says is mounted right now. */

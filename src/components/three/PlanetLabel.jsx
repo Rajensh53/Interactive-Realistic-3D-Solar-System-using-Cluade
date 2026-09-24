@@ -27,7 +27,7 @@ import { usePlanetStore } from "../../hooks/usePlanetStore.js";
 const MOON_LABEL_RANGE = 50; // × the moon's orbit radius
 const LABEL_LIFT_PX = 14;
 /** Two labels closer than this (centre to centre, in px) overlap. */
-const OVERLAP_X = 96;
+const OVERLAP_X = 130; // widest label ("GANYMEDE", "MERCURY") is ~120 px
 const OVERLAP_Y = 22;
 const _labelPos = new THREE.Vector3();
 
@@ -101,6 +101,9 @@ function PlanetLabel({ body, yOffset, trueScale = false }) {
     <group ref={groupRef} position={[0, offset, 0]}>
       <Html
         center
+        // drei's default z-index range reaches ~16.7 million, which put labels
+        // on top of the details panel and toolbar (z-20 / z-30).
+        zIndexRange={[10, 0]}
         style={{
           pointerEvents: active ? "auto" : "none",
           transition:

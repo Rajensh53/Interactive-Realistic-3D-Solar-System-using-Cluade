@@ -87,9 +87,12 @@ function Moon({ moon, trueScale = false }) {
       orbit.position.z = -moon.orbitRadius * Math.sin(angle);
     }
 
-    // Slow deterministic axial spin
+    // Tidally locked: one turn per orbit, so it follows the orbit angle (and
+    // the Orbit speed), not the spin clock. At rotation 0 a sphere's texture
+    // centre (u = 0.5) faces +X; +π turns it toward the planet at the origin,
+    // which keeps the Moon's familiar near side facing Earth.
     if (spinRef.current) {
-      spinRef.current.rotation.y = moon.rotationSpeed * t;
+      spinRef.current.rotation.y = angle + Math.PI;
     }
 
     // Hover scale animation: smooth lerp between 1.0 and 1.08

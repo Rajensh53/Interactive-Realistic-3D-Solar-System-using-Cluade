@@ -1,9 +1,11 @@
-import { memo, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { usePlanetStore } from "../../hooks/usePlanetStore.js";
+import SpeedControls from "./SpeedControls.jsx";
 
 /**
  * Top floating utility controls:
  * - Reset View button (when a planet is selected)
+ * - Orbit / rotation speed popover (SpeedControls)
  * - Orbit lines toggle
  * - Labels toggle
  * - Audio mute/unmute and volume slider
@@ -26,6 +28,24 @@ function Controls() {
 
   const setAboutOpen = usePlanetStore((s) => s.setAboutOpen);
   const [volumeOpen, setVolumeOpen] = useState(false);
+  const volumeCloseTimer = useRef(null);
+
+  // The volume slider sits 12 px below its button. Close it shortly after the
+  // pointer leaves *either* one (the delay lets it cross the gap); closing only
+  // when leaving the slider left it stuck open after a pass over the button.
+  function keepVolumeOpen() {
+    clearTimeout(volumeCloseTimer.current);
+    setVolumeOpen(true);
+  }
+  function scheduleVolumeClose() {
+    clearTimeout(volumeCloseTimer.current);
+    volumeCloseTimer.current = setTimeout(() => setVolumeOpen(false), 300);
+  }
+  useEffect(() => () => clearTimeout(volumeCloseTimer.current), []);
+
+  // Text labels on the toggles need room; with the details panel open they
+  // collapse to icons until the bar is wide enough again.
+  const toggleText = `hidden ${selectedPlanetId ? "xl:inline" : "md:inline"} font-display text-[10px] uppercase tracking-wider`;
 
   function handleToggleAudio() {
     if (!audio.started) {
@@ -38,7 +58,13 @@ function Controls() {
   if (appState !== "exploring") return null;
 
   return (
-    <header className="fixed top-4 left-4 right-4 z-20 flex items-center justify-between pointer-events-none">
+    // While the details panel is open (420 px on the right from sm up) the bar
+    // ends left of it, so no button sits hidden underneath the panel.
+    <header
+      className={`fixed top-4 left-4 right-4 z-20 flex items-start justify-between gap-2 pointer-events-none ${
+        selectedPlanetId ? "sm:right-[452px]" : ""
+      }`}
+    >
       {/* Top Left: Reset View (when focused) or App Title */}
       <div className="flex items-center gap-2 pointer-events-auto">
         {selectedPlanetId ? (
@@ -65,15 +91,18 @@ function Controls() {
           </div>
         )}
 
-        {trueScale ? (
+        {trueScale && !selectedPlanetId ? (
           <div className="glass-panel hidden lg:block px-3.5 py-2 rounded-full border border-solar-400/30 text-[10px] text-ink-300 font-sans">
             Distances and sizes to scale. Use the planet rail or labels to jump.
           </div>
         ) : null}
       </div>
 
-      {/* Top Right: Utility Toggles */}
-      <div className="flex items-center gap-2 pointer-events-auto">
+      {/* Top Right: Utility Toggles (wrap rather than overlap on narrow bars) */}
+      <div className="flex flex-wrap items-center justify-end gap-2 pointer-events-auto">
+        {/* Orbit & rotation speed */}
+        <SpeedControls />
+
         {/* Scale Mode: Compact <-> True Scale */}
         <button
           onClick={() => setSetting("scaleMode", trueScale ? "compact" : "true")}
@@ -93,7 +122,7 @@ function Controls() {
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M3 12h18M3 12l3-3m-3 3l3 3m15-3l-3-3m3 3l-3 3" />
           </svg>
-          <span className="hidden md:inline font-display text-[10px] uppercase tracking-wider">
+          <span className={toggleText}>
             {trueScale ? "True Scale" : "Compact"}
           </span>
         </button>
@@ -113,7 +142,7 @@ function Controls() {
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <ellipse cx="12" cy="12" rx="9" ry="5" strokeDasharray={settings.orbitLines ? "none" : "2 2"} />
           </svg>
-          <span className="hidden md:inline font-display text-[10px] uppercase tracking-wider">
+          <span className={toggleText}>
             Orbits
           </span>
         </button>
@@ -133,16 +162,34 @@ function Controls() {
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z" />
           </svg>
-          <span className="hidden md:inline font-display text-[10px] uppercase tracking-wider">
+          <span className={toggleText}>
             Labels
           </span>
         </button>
 
-        {/* Audio Toggle & Volume Slider */}
-        <div className="relative flex items-center">
+        {/* About / Attribution Modal Trigger */}
+        <button
+          onClick={() => setAboutOpen(true)}
+          className="glass-panel flex items-center justify-center w-9 h-9 rounded-full border border-white/10 text-ink-400 hover:text-ink-100 hover:border-white/20 transition-all cursor-pointer"
+          title="About & Attribution"
+          aria-label="Open about and credits dialog"
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+        </button>
+
+        {/* Audio Toggle & Volume Slider: kept last, so the volume slider that
+            drops below it can never cover another toolbar button when the
+            bar wraps (tablets with the details panel open). */}
+        <div
+          className="relative flex items-center"
+          onMouseEnter={() => volumeOpen && keepVolumeOpen()}
+          onMouseLeave={scheduleVolumeClose}
+        >
           <button
             onClick={handleToggleAudio}
-            onMouseEnter={() => setVolumeOpen(true)}
+            onMouseEnter={keepVolumeOpen}
             className={`glass-panel flex items-center justify-center w-9 h-9 rounded-full border transition-all cursor-pointer ${
               audio.enabled
                 ? "border-accent-400/50 text-accent-300 bg-accent-500/10 shadow-[0_0_12px_rgba(56,189,248,0.25)]"
@@ -167,7 +214,8 @@ function Controls() {
           {/* Inline Volume Slider Popover */}
           {volumeOpen && audio.enabled ? (
             <div
-              onMouseLeave={() => setVolumeOpen(false)}
+              onMouseEnter={keepVolumeOpen}
+              onMouseLeave={scheduleVolumeClose}
               className="glass-panel absolute right-0 top-12 p-3 rounded-xl border border-white/10 shadow-xl flex items-center gap-2 z-30"
             >
               <input
@@ -187,17 +235,6 @@ function Controls() {
           ) : null}
         </div>
 
-        {/* About / Attribution Modal Trigger */}
-        <button
-          onClick={() => setAboutOpen(true)}
-          className="glass-panel flex items-center justify-center w-9 h-9 rounded-full border border-white/10 text-ink-400 hover:text-ink-100 hover:border-white/20 transition-all cursor-pointer"
-          title="About & Attribution"
-          aria-label="Open about and credits dialog"
-        >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </button>
       </div>
     </header>
   );

@@ -80,6 +80,9 @@ export default function DevProbe() {
 
       camera: () => ({
         position: camera.position.toArray().map((n) => +n.toFixed(2)),
+        // Unrounded: at true scale a planet close-up is ~0.07 u from the
+        // camera, below the 2-decimal rounding above.
+        exactPosition: camera.position.toArray(),
         fov: camera.fov,
         near: camera.near,
         far: camera.far,

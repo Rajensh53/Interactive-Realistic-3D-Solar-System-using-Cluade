@@ -6,8 +6,11 @@ import { usePlanetStore } from "./usePlanetStore.js";
  *
  * Spec §19 & §3.8:
  * - Pure procedural Web Audio synthesis (zero audio downloads or licensing issues)
- * - Deep-space binaural drone (55.0 Hz & 55.4 Hz dual detuned sines)
- * - Lowpass filtered warmth + gentle LFO-modulated pink noise solar wind swell
+ * - Evolving deep-space pad (open A chord, 110-330 Hz) that small laptop and
+ *   phone speakers can actually reproduce
+ * - Quiet 55 / 55.4 Hz binaural sub-bass for headphones
+ * - LFO-swept pink-noise solar wind swell and a faint high shimmer
+ * - Limiter on the output so no volume setting clips
  * - Strictly user-gesture gated (unlocked by "START EXPLORING" or sound button)
  * - Automatic background tab suspension (conserves CPU/battery)
  * - Pop-free exponential volume ramping
@@ -37,49 +40,80 @@ export function useAudioEngine() {
         return;
       }
 
-      // 1. Master Output Gain
+      // 1. Master chain: gain -> gentle limiter -> speakers. The limiter keeps
+      //    the summed layers from clipping at 100% volume.
       masterGain = ctx.createGain();
       masterGain.gain.setValueAtTime(0.0001, ctx.currentTime);
-      masterGain.connect(ctx.destination);
+      const limiter = ctx.createDynamicsCompressor();
+      limiter.threshold.setValueAtTime(-14, ctx.currentTime);
+      limiter.knee.setValueAtTime(8, ctx.currentTime);
+      limiter.ratio.setValueAtTime(6, ctx.currentTime);
+      limiter.attack.setValueAtTime(0.02, ctx.currentTime);
+      limiter.release.setValueAtTime(0.4, ctx.currentTime);
+      masterGain.connect(limiter);
+      limiter.connect(ctx.destination);
 
-      // 2. Cosmic Sub-Bass Drone (55 Hz & 55.4 Hz detuned sines)
-      // Generates an acoustic binaural pulse of 0.4 Hz
-      const droneFilter = ctx.createBiquadFilter();
-      droneFilter.type = "lowpass";
-      droneFilter.frequency.setValueAtTime(320, ctx.currentTime);
-      droneFilter.Q.setValueAtTime(1.4, ctx.currentTime);
+      const nodes = [];
+      const osc = (type, freq) => {
+        const o = ctx.createOscillator();
+        o.type = type;
+        o.frequency.setValueAtTime(freq, ctx.currentTime);
+        nodes.push(o);
+        return o;
+      };
+      const lfo = (rate, depth, target) => {
+        const l = osc("sine", rate);
+        const g = ctx.createGain();
+        g.gain.setValueAtTime(depth, ctx.currentTime);
+        l.connect(g);
+        g.connect(target);
+        return l;
+      };
 
-      const droneGain = ctx.createGain();
-      droneGain.gain.setValueAtTime(0.38, ctx.currentTime);
-      droneGain.connect(droneFilter);
-      droneFilter.connect(masterGain);
+      // 2. Deep-space pad: an open A chord (A2, E3, A3, E4) where most small
+      //    speakers can reproduce it. Each note is a pair of detuned voices,
+      //    so it slowly shimmers; a lowpass whose cutoff drifts on a slow LFO
+      //    makes the timbre breathe. The original design was a 55/110 Hz drone
+      //    alone, which laptop and phone speakers cannot play at all.
+      const padFilter = ctx.createBiquadFilter();
+      padFilter.type = "lowpass";
+      padFilter.frequency.setValueAtTime(900, ctx.currentTime);
+      padFilter.Q.setValueAtTime(0.9, ctx.currentTime);
+      const padGain = ctx.createGain();
+      padGain.gain.setValueAtTime(0.16, ctx.currentTime);
+      padFilter.connect(padGain);
+      padGain.connect(masterGain);
+      lfo(0.045, 450, padFilter.frequency); // ~22 s filter sweep
 
-      const osc1 = ctx.createOscillator();
-      osc1.type = "sine";
-      osc1.frequency.setValueAtTime(55.0, ctx.currentTime);
+      const PAD_NOTES = [
+        { freq: 110.0, level: 0.9 },
+        { freq: 164.81, level: 0.7 },
+        { freq: 220.0, level: 0.55 },
+        { freq: 329.63, level: 0.3 },
+      ];
+      PAD_NOTES.forEach(({ freq, level }, i) => {
+        const voiceGain = ctx.createGain();
+        voiceGain.gain.setValueAtTime(level, ctx.currentTime);
+        voiceGain.connect(padFilter);
+        // Slow, out-of-phase swells so the chord never sits still.
+        lfo(0.03 + i * 0.011, level * 0.35, voiceGain.gain);
+        for (const detune of [-4, 4]) {
+          const v = osc(i === 0 ? "triangle" : "sine", freq);
+          v.detune.setValueAtTime(detune + i, ctx.currentTime);
+          v.connect(voiceGain);
+        }
+      });
 
-      const osc2 = ctx.createOscillator();
-      osc2.type = "sine";
-      osc2.frequency.setValueAtTime(55.4, ctx.currentTime);
+      // 3. Sub-bass: the original 55 Hz binaural pair (0.4 Hz beat), kept
+      //    quiet. Felt on headphones; harmless where speakers can't play it.
+      const subGain = ctx.createGain();
+      subGain.gain.setValueAtTime(0.12, ctx.currentTime);
+      subGain.connect(masterGain);
+      osc("sine", 55.0).connect(subGain);
+      osc("sine", 55.4).connect(subGain);
 
-      // Faint sub-harmonic overtone (110 Hz triangle) for body warmth
-      const osc3 = ctx.createOscillator();
-      osc3.type = "triangle";
-      osc3.frequency.setValueAtTime(110.0, ctx.currentTime);
-      const osc3Gain = ctx.createGain();
-      osc3Gain.gain.setValueAtTime(0.12, ctx.currentTime);
-      osc3.connect(osc3Gain);
-      osc3Gain.connect(droneGain);
-
-      osc1.connect(droneGain);
-      osc2.connect(droneGain);
-
-      osc1.start();
-      osc2.start();
-      osc3.start();
-
-      // 3. Solar Wind / Cosmic Ether Swell (Pink Noise Generator)
-      // Uses Paul Kellet's filtered noise algorithm in a 4-second looping buffer
+      // 4. Solar wind: pink noise (Paul Kellet's filter) in a 4 s loop,
+      //    band-passed in the mid range and swept by a slow LFO.
       const bufferSize = ctx.sampleRate * 4;
       const noiseBuffer = ctx.createBuffer(1, bufferSize, ctx.sampleRate);
       const output = noiseBuffer.getChannelData(0);
@@ -107,38 +141,36 @@ export function useAudioEngine() {
       const noiseSource = ctx.createBufferSource();
       noiseSource.buffer = noiseBuffer;
       noiseSource.loop = true;
+      nodes.push(noiseSource);
 
       const windFilter = ctx.createBiquadFilter();
       windFilter.type = "bandpass";
-      windFilter.frequency.setValueAtTime(360, ctx.currentTime);
-      windFilter.Q.setValueAtTime(1.8, ctx.currentTime);
-
-      // Low Frequency Oscillator (LFO at 0.075 Hz ~ 13.3s cycle) modulating wind filter
-      const lfo = ctx.createOscillator();
-      lfo.type = "sine";
-      lfo.frequency.setValueAtTime(0.075, ctx.currentTime);
-
-      const lfoGain = ctx.createGain();
-      lfoGain.gain.setValueAtTime(190, ctx.currentTime); // Swings filter ±190 Hz
-      lfo.connect(lfoGain);
-      lfoGain.connect(windFilter.frequency);
+      windFilter.frequency.setValueAtTime(700, ctx.currentTime);
+      windFilter.Q.setValueAtTime(0.8, ctx.currentTime);
+      lfo(0.075, 380, windFilter.frequency); // ~13 s gust cycle
 
       const windGain = ctx.createGain();
-      windGain.gain.setValueAtTime(0.24, ctx.currentTime);
+      windGain.gain.setValueAtTime(1.1, ctx.currentTime);
+      lfo(0.05, 0.45, windGain.gain); // swells in and out
 
       noiseSource.connect(windFilter);
       windFilter.connect(windGain);
       windGain.connect(masterGain);
 
-      noiseSource.start();
-      lfo.start();
+      // 5. Shimmer: a faint high A (880 Hz) with a slow tremolo, like distant
+      //    starlight. Very low so it never becomes a whistle.
+      const shimmerGain = ctx.createGain();
+      shimmerGain.gain.setValueAtTime(0.012, ctx.currentTime);
+      shimmerGain.connect(masterGain);
+      const shimmer = osc("sine", 880);
+      shimmer.detune.setValueAtTime(3, ctx.currentTime);
+      shimmer.connect(shimmerGain);
+      lfo(0.11, 0.01, shimmerGain.gain);
+
+      nodes.forEach((n) => n.start());
 
       isInitialized = true;
-      engineRef.current = {
-        ctx,
-        masterGain,
-        nodes: [osc1, osc2, osc3, noiseSource, lfo],
-      };
+      engineRef.current = { ctx, masterGain, nodes };
     }
 
     function updateVolume(enabled, volume) {

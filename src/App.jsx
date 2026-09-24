@@ -51,10 +51,35 @@ export default function App() {
     }
   }, []);
 
-  // Global keyboard shortcuts (Esc to reset/close, Left/Right arrows to cycle planets)
+  // Global keyboard shortcuts: Esc resets/closes, Left/Right cycle planets,
+  // Space pauses, [ and ] halve / double the orbit speed.
   useEffect(() => {
     function handleKeyDown(e) {
       const store = usePlanetStore.getState();
+
+      // Leave keys alone while a control has focus: Space presses a focused
+      // button, and arrows move a focused slider.
+      const tag = e.target?.tagName;
+      const inControl =
+        tag === "INPUT" || tag === "BUTTON" || tag === "SELECT" || tag === "TEXTAREA" ||
+        e.target?.isContentEditable;
+
+      if (e.key === " " && !inControl) {
+        if (store.appState !== "exploring") return;
+        e.preventDefault();
+        store.togglePaused();
+        return;
+      }
+      if ((e.key === "[" || e.key === "]") && !inControl) {
+        if (store.appState !== "exploring") return;
+        const factor = e.key === "]" ? 2 : 0.5;
+        store.setOrbitSpeed(store.simulation.orbitSpeed * factor);
+        return;
+      }
+      // Arrows belong to a focused slider or field; a focused button (e.g. the
+      // planet rail after a click) still lets them cycle planets.
+      const inField = tag === "INPUT" || tag === "SELECT" || tag === "TEXTAREA";
+      if (inField && e.key !== "Escape") return;
 
       if (e.key === "Escape") {
         if (store.aboutOpen) {

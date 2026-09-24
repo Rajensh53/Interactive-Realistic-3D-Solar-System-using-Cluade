@@ -140,7 +140,8 @@ function Planet({ body, trueScale = false }) {
     }
 
     if (spinRef.current) {
-      spinRef.current.rotation.y = body.rotationSpeed * t;
+      // Spin runs on its own clock so the user can speed it independently.
+      spinRef.current.rotation.y = body.rotationSpeed * simulationClock.spinTime;
     }
 
     // Hover animation: smooth scale lerp & outline glow

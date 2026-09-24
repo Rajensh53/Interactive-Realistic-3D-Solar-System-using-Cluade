@@ -22,7 +22,7 @@ function CloudLayer({ body, scale = 1.015, speedFactor = 1.2, opacity = 0.85 }) 
   useFrame(() => {
     if (spinRef.current) {
       spinRef.current.rotation.y =
-        body.rotationSpeed * speedFactor * simulationClock.time;
+        body.rotationSpeed * speedFactor * simulationClock.spinTime;
     }
   });
 

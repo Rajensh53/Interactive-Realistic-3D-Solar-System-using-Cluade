@@ -15,6 +15,10 @@ import {
   formatDistanceKm,
   orbitTimeFromPeriod,
   AU_KM,
+  SCENE,
+  advanceClock,
+  rotationSpeedFromPeriod,
+  simulationClock,
   TRUE_SCALE,
 } from "../src/utils/planetUtils.js";
 
@@ -124,6 +128,42 @@ console.log("\n=== Retrograde encoding ===");
 check("all spins positive (tilt encodes retrograde)", PLANETS.every((p) => p.rotationSpeed > 0));
 check("Venus tilted past vertical", getBodyById("venus").axialTiltDeg > 90);
 check("Uranus tilted past vertical", getBodyById("uranus").axialTiltDeg > 90);
+
+console.log("\n=== Rotation (real sidereal periods) ===");
+check(
+  "spin derived from rotationPeriodHours",
+  [SUN, ...PLANETS].every(
+    (b) => b.rotationPeriodHours > 0 && b.rotationSpeed === rotationSpeedFromPeriod(b.rotationPeriodHours),
+  ),
+);
+const earthBody = getBodyById("earth");
+check(
+  "Earth turns once per EARTH_DAY_SECONDS at 1x",
+  Math.abs((2 * Math.PI) / earthBody.rotationSpeed - SCENE.EARTH_DAY_SECONDS) < 1e-9,
+  `${((2 * Math.PI) / earthBody.rotationSpeed).toFixed(3)} s`,
+);
+const SPIN_ORDER = ["jupiter", "saturn", "neptune", "uranus", "earth", "mars", "sun", "mercury", "venus"];
+const spins = SPIN_ORDER.map((id) => getBodyById(id).rotationSpeed);
+check(
+  "spin ordering Jupiter > Saturn > Neptune > Uranus > Earth > Mars > Sun > Mercury > Venus",
+  spins.every((v, i) => i === 0 || v < spins[i - 1]),
+);
+check("Mars spins slower than Earth", getBodyById("mars").rotationSpeed < earthBody.rotationSpeed);
+check("moons carry no spin rate (tidally locked)", MOONS.every((m) => m.rotationSpeed === undefined));
+
+console.log("\n=== Simulation clocks ===");
+const saved = { ...simulationClock };
+Object.assign(simulationClock, { time: 0, spinTime: 0, orbitScale: 5, spinScale: 0.5, paused: false });
+advanceClock(1);
+check(
+  "orbit 5x / spin 0.5x advance independently",
+  simulationClock.time === 5 && simulationClock.spinTime === 0.5,
+  `time ${simulationClock.time}, spinTime ${simulationClock.spinTime}`,
+);
+simulationClock.paused = true;
+advanceClock(1);
+check("paused clocks do not move", simulationClock.time === 5 && simulationClock.spinTime === 0.5);
+Object.assign(simulationClock, saved);
 
 console.log("\n=== Speed ordering (inner planets must outpace outer) ===");
 const times = PLANETS.map((p) => p.orbitTimeSeconds);

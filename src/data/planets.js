@@ -2,6 +2,7 @@ import {
   DEG2RAD,
   TRUE_SCALE,
   orbitTimeFromPeriod,
+  rotationSpeedFromPeriod,
   semiMinorFromEccentricity,
 } from "../utils/planetUtils.js";
 import { getMoonById, getMoonsFor, getScaledMoon } from "./moons.js";
@@ -44,6 +45,9 @@ import { getMoonById, getMoonsFor, getScaledMoon } from "./moons.js";
  * untouched by either layout.
  *
  * ROTATION / RETROGRADE NOTE
+ * Spin rates are derived from each body's real sidereal `rotationPeriodHours`
+ * (rotationSpeedFromPeriod), so relative spins are true: Jupiter turns 2.4×
+ * faster than Earth, Mars slightly slower, Venus 244× slower.
  * Every body spins with a positive `rotationSpeed`. Retrograde rotation is
  * encoded by axial tilt alone — Venus (177.4°) and Uranus (97.8°) are tilted
  * past vertical, so a positive spin about their own axis reads as backwards
@@ -79,7 +83,9 @@ export const SUN = {
 
   // Scene
   radius: 5.0,
-  rotationSpeed: 0.004,
+  // Sidereal, at the equator (Carrington rotation). Spin is derived from it.
+  rotationPeriodHours: 609.12,
+  rotationSpeed: rotationSpeedFromPeriod(609.12),
   axialTiltDeg: 7.25, // solar equator vs. the ecliptic
   axialTilt: 7.25 * DEG2RAD,
 
@@ -126,7 +132,8 @@ export const SUN = {
  * @property {number} eccentricity  real orbital eccentricity
  * @property {number} initialAngle  starting orbital angle, radians
  * @property {number} orbitTimeSeconds  derived from the real period
- * @property {number} rotationSpeed rad/s about its own axis (always positive)
+ * @property {number} rotationPeriodHours  real sidereal rotation period
+ * @property {number} rotationSpeed derived: rad per second of spin time (always positive)
  * @property {number} axialTilt     radians
  */
 
@@ -142,7 +149,7 @@ const PLANET_SOURCE = [
     semiMajor: 14,
     eccentricity: 0.2056,
     initialAngleDeg: 0,
-    rotationSpeed: 0.05,
+    rotationPeriodHours: 1407.6,
     axialTiltDeg: 0.034,
 
     texture: `${TEX}/2k_mercury.jpg`,
@@ -192,7 +199,7 @@ const PLANET_SOURCE = [
     semiMajor: 19,
     eccentricity: 0.0068,
     initialAngleDeg: 90,
-    rotationSpeed: 0.03,
+    rotationPeriodHours: 5832.5,
     axialTiltDeg: 177.36, // past vertical — this is what makes Venus retrograde
 
     texture: `${TEX}/2k_venus_atmosphere.jpg`,
@@ -243,7 +250,7 @@ const PLANET_SOURCE = [
     semiMajor: 25,
     eccentricity: 0.0167,
     initialAngleDeg: 210,
-    rotationSpeed: 0.75,
+    rotationPeriodHours: 23.934,
     axialTiltDeg: 23.44,
 
     texture: `${TEX}/2k_earth_daymap.jpg`,
@@ -298,7 +305,7 @@ const PLANET_SOURCE = [
     semiMajor: 32,
     eccentricity: 0.0934,
     initialAngleDeg: 290,
-    rotationSpeed: 0.78,
+    rotationPeriodHours: 24.623,
     axialTiltDeg: 25.19,
 
     texture: `${TEX}/2k_mars.jpg`,
@@ -348,7 +355,7 @@ const PLANET_SOURCE = [
     semiMajor: 46,
     eccentricity: 0.0489,
     initialAngleDeg: 340,
-    rotationSpeed: 1.6,
+    rotationPeriodHours: 9.925,
     axialTiltDeg: 3.13,
 
     texture: `${TEX}/2k_jupiter.jpg`,
@@ -399,7 +406,7 @@ const PLANET_SOURCE = [
     semiMajor: 62,
     eccentricity: 0.0565,
     initialAngleDeg: 45,
-    rotationSpeed: 1.5,
+    rotationPeriodHours: 10.56,
     axialTiltDeg: 26.73,
 
     texture: `${TEX}/2k_saturn.jpg`,
@@ -454,7 +461,7 @@ const PLANET_SOURCE = [
     semiMajor: 78,
     eccentricity: 0.0457,
     initialAngleDeg: 120,
-    rotationSpeed: 0.9,
+    rotationPeriodHours: 17.24,
     axialTiltDeg: 97.77, // rolls on its side — the tilt also makes it retrograde
 
     texture: `${TEX}/2k_uranus.jpg`,
@@ -506,7 +513,7 @@ const PLANET_SOURCE = [
     semiMajor: 92,
     eccentricity: 0.0086,
     initialAngleDeg: 250,
-    rotationSpeed: 0.95,
+    rotationPeriodHours: 16.11,
     axialTiltDeg: 28.32,
 
     texture: `${TEX}/2k_neptune.jpg`,
@@ -559,6 +566,7 @@ export const PLANETS = PLANET_SOURCE.map((p) => ({
   axialTilt: p.axialTiltDeg * DEG2RAD,
   semiMinor: semiMinorFromEccentricity(p.semiMajor, p.eccentricity),
   orbitTimeSeconds: orbitTimeFromPeriod(p.orbitalPeriodYears),
+  rotationSpeed: rotationSpeedFromPeriod(p.rotationPeriodHours),
 }));
 
 /**

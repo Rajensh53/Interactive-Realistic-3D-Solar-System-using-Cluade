@@ -35,6 +35,13 @@ export const SCENE = {
    * that makes the inner planets visibly race the outer ones.
    */
   PERIOD_EXPONENT: 0.7,
+  /**
+   * Real seconds for Earth to spin once at 1×. Spin has its own base: at the
+   * true day:year ratio Earth would turn 366 times per 45 s orbit and strobe.
+   * Every body's spin is then scaled from its real period (see
+   * rotationSpeedFromPeriod), so relative spin rates are true.
+   */
+  EARTH_DAY_SECONDS: 20,
   /** Scene units from the Sun to Earth's orbit. */
   EARTH_ORBIT_UNITS: 25,
   /** Camera home position for the full-system overview. */
@@ -89,6 +96,20 @@ export function getSceneConfig(mode) {
  */
 export function orbitTimeFromPeriod(periodYears) {
   return SCENE.EARTH_YEAR_SECONDS * periodYears ** SCENE.PERIOD_EXPONENT;
+}
+
+/** Earth's sidereal rotation period, the reference for all spin rates. */
+const EARTH_SIDEREAL_DAY_HOURS = 23.934;
+
+/**
+ * Spin rate (rad per scene second of spin time) for a real sidereal rotation
+ * period. Earth turns once per EARTH_DAY_SECONDS; everything else keeps its
+ * true ratio to Earth, so Jupiter turns 2.4× faster and Venus 244× slower.
+ * @param {number} periodHours sidereal rotation period, in hours
+ */
+export function rotationSpeedFromPeriod(periodHours) {
+  const seconds = (periodHours / EARTH_SIDEREAL_DAY_HOURS) * SCENE.EARTH_DAY_SECONDS;
+  return TWO_PI / seconds;
 }
 
 /**
@@ -207,19 +228,29 @@ export function formatDistanceKm(km) {
    --------------------------------------------------------------------------- */
 
 export const simulationClock = {
-  /** Seconds of simulated time since the scene mounted. */
+  /**
+   * Orbit clock: seconds of simulated time since the scene mounted. Drives
+   * every orbital position (and so the live-distance readout and camera).
+   */
   time: 0,
-  /** Multiplier on real time. 0 pauses the system without stopping rendering. */
-  timeScale: 1,
+  /** Spin clock: drives axial rotation, cloud drift and the Sun's surface. */
+  spinTime: 0,
+  /** Multipliers on real time, set from the user's Speed controls. */
+  orbitScale: 1,
+  spinScale: 1,
+  /** Freezes both clocks without stopping rendering or the camera. */
+  paused: false,
 };
 
 /**
- * Advance the clock by a real-time delta. Called once per frame.
+ * Advance both clocks by a real-time delta. Called once per frame.
  * @param {number} delta seconds since the previous frame
- * @returns {number} the new scene time
+ * @returns {number} the new orbit time
  */
 export function advanceClock(delta) {
-  simulationClock.time += delta * simulationClock.timeScale;
+  if (simulationClock.paused) return simulationClock.time;
+  simulationClock.time += delta * simulationClock.orbitScale;
+  simulationClock.spinTime += delta * simulationClock.spinScale;
   return simulationClock.time;
 }
 

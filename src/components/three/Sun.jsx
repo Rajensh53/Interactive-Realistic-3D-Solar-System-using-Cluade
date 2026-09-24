@@ -90,10 +90,10 @@ function Sun({ trueScale = false }) {
 
   useFrame((_, delta) => {
     // Advance solar surface simulation time
-    uniforms.uTime.value = simulationClock.time;
+    uniforms.uTime.value = simulationClock.spinTime;
 
     if (spinRef.current) {
-      spinRef.current.rotation.y = SUN.rotationSpeed * simulationClock.time;
+      spinRef.current.rotation.y = SUN.rotationSpeed * simulationClock.spinTime;
     }
 
     // Hover scale animation

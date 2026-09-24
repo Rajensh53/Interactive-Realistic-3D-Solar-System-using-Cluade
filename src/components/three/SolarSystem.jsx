@@ -8,7 +8,7 @@ import StarField from "./StarField.jsx";
 import SkyDome from "./SkyDome.jsx";
 import SpaceEnvironment from "./SpaceEnvironment.jsx";
 import { getScaledPlanets } from "../../data/planets.js";
-import { advanceClock, cameraAnchors } from "../../utils/planetUtils.js";
+import { advanceClock, cameraAnchors, simulationClock } from "../../utils/planetUtils.js";
 import { useTexturesReady } from "../../utils/textureUtils.js";
 import { usePlanetStore } from "../../hooks/usePlanetStore.js";
 import { TIER_CONFIG } from "../../hooks/useQualityTier.js";
@@ -25,6 +25,13 @@ import { TIER_CONFIG } from "../../hooks/useQualityTier.js";
  */
 function SimulationClock() {
   useFrame((_, delta) => {
+    // Apply the user's Speed controls. Read with getState() so moving a
+    // slider never re-renders the scene.
+    const { orbitSpeed, rotationSpeed, paused } = usePlanetStore.getState().simulation;
+    simulationClock.orbitScale = orbitSpeed;
+    simulationClock.spinScale = rotationSpeed;
+    simulationClock.paused = paused;
+
     // Clamp the delta so a backgrounded tab returning after 30 seconds doesn't
     // teleport every planet through a third of its orbit.
     advanceClock(Math.min(delta, 0.1));

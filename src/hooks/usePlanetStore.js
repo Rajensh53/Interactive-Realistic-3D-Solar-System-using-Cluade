@@ -28,6 +28,20 @@ import { create } from "zustand";
  * Grows in Phase 5 (camera phase) and Phase 6 (app state, settings, audio) —
  * §3.7 of the build plan has the full intended shape.
  */
+/** Range of the Orbit / Rotation speed sliders (multipliers on real time). */
+export const SPEED_MIN = 0.1;
+export const SPEED_MAX = 100;
+
+const DEFAULT_SIMULATION = Object.freeze({
+  orbitSpeed: 1,
+  rotationSpeed: 1,
+  paused: false,
+  linked: false,
+});
+
+const clampSpeed = (v) =>
+  Number.isFinite(v) ? Math.min(Math.max(v, SPEED_MIN), SPEED_MAX) : 1;
+
 export const usePlanetStore = create((set) => ({
   /** Body the pointer is currently over, or null. */
   hoveredPlanetId: null,
@@ -82,6 +96,46 @@ export const usePlanetStore = create((set) => ({
         [key]: value,
       },
     })),
+
+  /**
+   * User speed controls. Multipliers on the orbit and spin clocks
+   * (SPEED_MIN-SPEED_MAX); `linked` makes either slider move both. Copied onto
+   * `simulationClock` once per frame by <SimulationClock>.
+   */
+  simulation: { ...DEFAULT_SIMULATION },
+
+  setOrbitSpeed: (speed) =>
+    set((state) => {
+      const v = clampSpeed(speed);
+      const sim = state.simulation;
+      return { simulation: { ...sim, orbitSpeed: v, ...(sim.linked ? { rotationSpeed: v } : null) } };
+    }),
+
+  setRotationSpeed: (speed) =>
+    set((state) => {
+      const v = clampSpeed(speed);
+      const sim = state.simulation;
+      return { simulation: { ...sim, rotationSpeed: v, ...(sim.linked ? { orbitSpeed: v } : null) } };
+    }),
+
+  togglePaused: () =>
+    set((state) => ({ simulation: { ...state.simulation, paused: !state.simulation.paused } })),
+
+  setPaused: (paused) =>
+    set((state) => ({ simulation: { ...state.simulation, paused } })),
+
+  /** Linking snaps rotation to the current orbit speed so they move as one. */
+  setLinked: (linked) =>
+    set((state) => ({
+      simulation: {
+        ...state.simulation,
+        linked,
+        ...(linked ? { rotationSpeed: state.simulation.orbitSpeed } : null),
+      },
+    })),
+
+  resetSpeeds: () =>
+    set((state) => ({ simulation: { ...DEFAULT_SIMULATION, linked: state.simulation.linked } })),
 
   /** Application experience flow: 'loading' | 'intro' | 'exploring'. */
   appState: "loading",
