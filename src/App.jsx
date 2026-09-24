@@ -92,8 +92,8 @@ export default function App() {
           camera={{
             position: [OVERVIEW_CAMERA.x, OVERVIEW_CAMERA.y, OVERVIEW_CAMERA.z],
             fov: 60,
-            near: 0.1,
-            far: 1400,
+            near: SCENE.NEAR,
+            far: SCENE.FAR,
           }}
           gl={{
             antialias: true,

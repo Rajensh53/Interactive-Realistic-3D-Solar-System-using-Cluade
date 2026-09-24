@@ -12,9 +12,11 @@
  *     floating-point drift, and the camera can ask "where is Mars *right now*"
  *     mid-flight and get an exact answer (see useCameraControls).
  *
- *  2. **Scene scale is not physical scale.** Distances are compressed so the
- *     whole system composes on screen. Real astronomical values are kept
- *     separately (`semiMajorAU`) and used for anything shown as a number.
+ *  2. **Scene scale is a mode.** In "compact" mode (`SCENE`) distances and
+ *     sizes are eased so the whole system composes on screen; in "true" mode
+ *     (`TRUE_SCALE`) everything shares one physical scale. Real astronomical
+ *     values (`semiMajorAU`, `diameterKm`, ...) are kept separately and used
+ *     for anything shown as a number, so readouts never depend on the mode.
  */
 
 export const TWO_PI = Math.PI * 2;
@@ -41,7 +43,44 @@ export const SCENE = {
   MIN_CAMERA_DISTANCE: 8,
   /** Far enough to frame Neptune's orbit (92 u) with headroom, no further. */
   MAX_CAMERA_DISTANCE: 260,
+  /** Camera clip planes. Fixed in compact mode. */
+  NEAR: 0.1,
+  FAR: 1400,
 };
+
+/**
+ * True-scale layout: one scale for every distance *and* every size.
+ *
+ * 1 AU = 1,000 units, so the Sun's radius is 4.65 u, Earth's 0.043 u, the
+ * Moon orbits 2.57 u from Earth and Neptune 30,070 u from the Sun. From an
+ * overview the planets are far smaller than a pixel — that is what the Solar
+ * System actually looks like — so labels and markers carry the navigation.
+ *
+ * Coordinates of ~30,000 u are safe: three.js composes modelViewMatrix in
+ * float64 on the CPU, so only camera-relative values reach the GPU.
+ */
+const UNITS_PER_AU = 1000;
+
+export const TRUE_SCALE = {
+  UNITS_PER_AU,
+  KM_TO_UNITS: UNITS_PER_AU / AU_KM,
+  /** Frames the inner system out to Mars; zoom out for the giants. */
+  OVERVIEW_CAMERA: { x: 0, y: 1200, z: 3200 },
+  MIN_CAMERA_DISTANCE: 0.05,
+  /** Neptune's whole orbit (≈60,000 u across) with headroom. */
+  MAX_CAMERA_DISTANCE: 120_000,
+  /** The near plane follows the camera; see useCameraControls. */
+  NEAR: 0.001,
+  FAR: 400_000,
+};
+
+/**
+ * Camera limits and overview framing for a scale mode.
+ * @param {"compact"|"true"} mode
+ */
+export function getSceneConfig(mode) {
+  return mode === "true" ? TRUE_SCALE : SCENE;
+}
 
 /**
  * Compress a real orbital period (in Earth years) into simulation seconds.
@@ -208,6 +247,14 @@ export function unregisterBody(id) {
 export function getBody(id) {
   return bodyRegistry.get(id);
 }
+
+/**
+ * Groups that should sit on the camera (the sky at "infinity" in true-scale
+ * mode). The camera hook moves them *after* it has moved the camera each
+ * frame, so the backdrop never lags a frame behind during long flights.
+ * @type {Set<object>}
+ */
+export const cameraAnchors = new Set();
 
 /**
  * Write a registered body's world position into a THREE.Vector3-like target.

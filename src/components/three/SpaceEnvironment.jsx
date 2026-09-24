@@ -90,7 +90,9 @@ const NEBULA_VERTEX_SHADER = /* glsl */ `
 
   void main() {
     vec4 worldPos = modelMatrix * vec4(position, 1.0);
-    vec3 p = worldPos.xyz * uScale;
+    // Sample relative to the shell's own centre so the pattern stays put when
+    // the shell rides on the camera (true-scale mode). Zero offset in compact.
+    vec3 p = (worldPos.xyz - modelMatrix[3].xyz) * uScale;
 
     // Fractional Brownian Motion computed per-vertex for extreme fillrate efficiency
     float n1 = snoise(p + vec3(0.0, uTime * 0.005, 0.0));
@@ -349,7 +351,7 @@ function DeepSpaceGalaxies() {
 /**
  * Main Space Environment Orchestrator
  */
-function SpaceEnvironment({ dustCount = 2000, nebulaShells = 2 }) {
+function SpaceEnvironment({ dustCount = 2000, nebulaShells = 2, showDust = true }) {
   return (
     <group>
       {/* Deep Violet & Magenta Nebula Shell */}
@@ -375,7 +377,7 @@ function SpaceEnvironment({ dustCount = 2000, nebulaShells = 2 }) {
       ) : null}
 
       {/* Interplanetary Cosmic Dust Field */}
-      <CosmicDust count={dustCount} />
+      {showDust ? <CosmicDust count={dustCount} /> : null}
 
       {/* Deep Space Galaxies */}
       <DeepSpaceGalaxies />

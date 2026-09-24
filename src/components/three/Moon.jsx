@@ -10,6 +10,7 @@ import {
 import { getTexture } from "../../utils/textureUtils.js";
 import { usePlanetStore } from "../../hooks/usePlanetStore.js";
 import PlanetLabel from "./PlanetLabel.jsx";
+import BodyMarker from "./BodyMarker.jsx";
 
 /**
  * A moon orbiting a planet.
@@ -24,7 +25,7 @@ import PlanetLabel from "./PlanetLabel.jsx";
  * - Pulsing selection indicator ring
  * - Floating 3D label badge
  */
-function Moon({ moon }) {
+function Moon({ moon, trueScale = false }) {
   const orbitRef = useRef(null);
   const spinRef = useRef(null);
   const currentScaleRef = useRef(1.0);
@@ -105,7 +106,8 @@ function Moon({ moon }) {
     }
   });
 
-  const hitRadius = Math.max(moon.radius * 1.8, 0.75);
+  // At true scale a 0.75 u floor would be a third of the Moon's whole orbit.
+  const hitRadius = trueScale ? moon.radius * 2 : Math.max(moon.radius * 1.8, 0.75);
 
   return (
     <group rotation={inclinationRotation}>
@@ -136,7 +138,15 @@ function Moon({ moon }) {
         ) : null}
 
         {/* Floating 3D label badge */}
-        <PlanetLabel body={moon} yOffset={moon.radius + 0.65} />
+        <PlanetLabel
+          body={moon}
+          yOffset={trueScale ? moon.radius * 1.6 : moon.radius + 0.65}
+          trueScale={trueScale}
+        />
+
+        {trueScale ? (
+          <BodyMarker color={moon.fallbackColor} radius={moon.radius} />
+        ) : null}
 
         {/* Invisible hit proxy sphere for easy hover & click */}
         <mesh

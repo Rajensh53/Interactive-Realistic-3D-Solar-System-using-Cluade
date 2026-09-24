@@ -8,6 +8,7 @@ import Rings from "./Rings.jsx";
 import CloudLayer from "./CloudLayer.jsx";
 import Atmosphere from "./Atmosphere.jsx";
 import PlanetLabel from "./PlanetLabel.jsx";
+import BodyMarker from "./BodyMarker.jsx";
 import { getMoonsFor } from "../../data/moons.js";
 import { usePlanetMaterial, useSunDirection } from "../../hooks/usePlanetMaterial.js";
 import { usePlanetStore } from "../../hooks/usePlanetStore.js";
@@ -44,14 +45,14 @@ const _pos = { x: 0, y: 0, z: 0 };
  *     <Moon />…                   moons are inclined to the ecliptic, so they
  *                                 sit outside the tilt group
  */
-function Planet({ body }) {
+function Planet({ body, trueScale = false }) {
   const orbitRef = useRef(null);
   const spinGroupRef = useRef(null);
   const spinRef = useRef(null);
   const hoverGlowRef = useRef(null);
   const currentScaleRef = useRef(1.0);
 
-  const moons = getMoonsFor(body.id);
+  const moons = getMoonsFor(body.id, trueScale ? "true" : "compact");
   const showOrbits = usePlanetStore((s) => s.settings.orbitLines);
 
   // Shared by the surface material's night-lights mask and the atmosphere's
@@ -173,8 +174,12 @@ function Planet({ body }) {
   });
 
   // Small planets (Mercury 0.38, Mars 0.53) span 2-3px at overview distance.
-  // Hit proxy floor prevents frustrating pixel-hunting.
-  const hitRadius = Math.max(body.radius * 1.25, 1.25);
+  // Hit proxy floor prevents frustrating pixel-hunting. At true scale a fixed
+  // floor would swallow the moons' orbits (the Moon is only 2.57 u out), so the
+  // proxy stays proportional and the marker + label carry selection instead.
+  const hitRadius = trueScale
+    ? body.radius * 1.5
+    : Math.max(body.radius * 1.25, 1.25);
 
   return (
     <group ref={orbitRef}>
@@ -220,7 +225,11 @@ function Planet({ body }) {
       </mesh>
 
       {/* Floating billboarded label */}
-      <PlanetLabel body={body} />
+      <PlanetLabel body={body} trueScale={trueScale} />
+
+      {trueScale ? (
+        <BodyMarker color={body.fallbackColor} radius={body.radius} />
+      ) : null}
 
       {/* Invisible hit proxy sphere for ergonomic click/hover hit testing */}
       <mesh
@@ -239,12 +248,13 @@ function Planet({ body }) {
         ))}
 
       {moons.map((moon) => (
-        <Moon key={moon.id} moon={moon} />
+        <Moon key={moon.id} moon={moon} trueScale={trueScale} />
       ))}
     </group>
   );
 }
 
-// Body objects are module-level constants, so this never re-renders after mount.
+// Body objects are module-level constants, so this only re-renders when the
+// scale mode swaps in the other layout.
 export default memo(Planet);
 

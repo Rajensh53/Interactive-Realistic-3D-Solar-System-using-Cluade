@@ -1,9 +1,10 @@
 import {
   DEG2RAD,
+  TRUE_SCALE,
   orbitTimeFromPeriod,
   semiMinorFromEccentricity,
 } from "../utils/planetUtils.js";
-import { getMoonById, getMoonsFor } from "./moons.js";
+import { getMoonById, getMoonsFor, getScaledMoon } from "./moons.js";
 
 /**
  * The single source of truth for every body in the scene.
@@ -31,11 +32,16 @@ import { getMoonById, getMoonsFor } from "./moons.js";
  * Sources: NASA Planetary Fact Sheets (NSSDCA), NASA Science, JPL SSD.
  *
  * SCALE NOTE
- * Sizes and distances use two independent scales. At true scale the Sun would
- * be 109 Earths wide and Neptune 30× further out than Earth — nothing would
- * compose on screen. Radii are eased toward the middle and orbits are spaced
- * for legibility. Everything shown as a *number* comes from the physical
- * fields, which are untouched.
+ * Two layouts share these records:
+ *  - Compact (the scene fields below): sizes and distances use two independent
+ *    scales. At true scale the Sun is 109 Earths wide and Neptune 30× further
+ *    out than Earth, so radii are eased toward the middle and orbits are spaced
+ *    for legibility.
+ *  - True scale (PLANETS_TRUE / SUN_TRUE, derived at the bottom of this file):
+ *    radius and orbit are recomputed from `diameterKm` and `semiMajorAU` on
+ *    the single TRUE_SCALE factor (1 AU = 1,000 units).
+ * Everything shown as a *number* comes from the physical fields, which are
+ * untouched by either layout.
  *
  * ROTATION / RETROGRADE NOTE
  * Every body spins with a positive `rotationSpeed`. Retrograde rotation is
@@ -52,6 +58,9 @@ import { getMoonById, getMoonsFor } from "./moons.js";
  */
 
 const TEX = "/textures/planets";
+
+/** IAU nominal solar radius. */
+const SUN_RADIUS_KM = 695_700;
 
 /** Categories shown under the planet name in the details panel. */
 export const CATEGORY = {
@@ -79,7 +88,7 @@ export const SUN = {
   fallbackColor: "#ffcf6b",
 
   // Physical
-  diameterKm: 1_391_400, // IAU nominal solar radius 695,700 km
+  diameterKm: SUN_RADIUS_KM * 2,
   distanceFromSunKm: 0,
   distanceToEarthKm: 149_600_000,
   distanceToGalacticCenter: "~26,000 light-years",
@@ -551,6 +560,47 @@ export const PLANETS = PLANET_SOURCE.map((p) => ({
   semiMinor: semiMinorFromEccentricity(p.semiMajor, p.eccentricity),
   orbitTimeSeconds: orbitTimeFromPeriod(p.orbitalPeriodYears),
 }));
+
+/**
+ * True-scale variants: the same records with scene geometry recomputed from
+ * the physical fields on one scale (see TRUE_SCALE). Nothing here is
+ * hand-typed, so the layout cannot drift from the real data.
+ */
+const KM = TRUE_SCALE.KM_TO_UNITS;
+
+export const SUN_TRUE = { ...SUN, radius: SUN_RADIUS_KM * KM };
+
+export const PLANETS_TRUE = PLANETS.map((p) => {
+  const semiMajor = p.semiMajorAU * TRUE_SCALE.UNITS_PER_AU;
+  return {
+    ...p,
+    radius: (p.diameterKm / 2) * KM,
+    semiMajor,
+    semiMinor: semiMinorFromEccentricity(semiMajor, p.eccentricity),
+  };
+});
+
+const SCALED_BY_ID = {
+  compact: new Map([SUN, ...PLANETS].map((b) => [b.id, b])),
+  true: new Map([SUN_TRUE, ...PLANETS_TRUE].map((b) => [b.id, b])),
+};
+
+/** The Sun and planets laid out for a scale mode. */
+export function getScaledPlanets(mode) {
+  return mode === "true" ? PLANETS_TRUE : PLANETS;
+}
+
+export function getScaledSun(mode) {
+  return mode === "true" ? SUN_TRUE : SUN;
+}
+
+/**
+ * Any body (Sun, planet or moon) with the scene geometry of a scale mode.
+ * Use this for anything spatial; `getBodyById` returns the canonical record.
+ */
+export function getScaledBody(id, mode = "compact") {
+  return (SCALED_BY_ID[mode] ?? SCALED_BY_ID.compact).get(id) ?? getScaledMoon(id, mode);
+}
 
 /** Every selectable body, Sun first — drives the navigation rail. */
 export const BODIES = [SUN, ...PLANETS];

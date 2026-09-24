@@ -4,15 +4,11 @@ import * as THREE from "three";
 import gsap from "gsap";
 
 import { usePlanetStore } from "./usePlanetStore.js";
-import { getBodyById } from "../data/planets.js";
-import { bodyRegistry, SCENE } from "../utils/planetUtils.js";
+import { getScaledBody } from "../data/planets.js";
+import { bodyRegistry, cameraAnchors, getSceneConfig } from "../utils/planetUtils.js";
 import { getBodyFraming, getTravelDuration } from "../utils/animationUtils.js";
 
-const _overviewCam = new THREE.Vector3(
-  SCENE.OVERVIEW_CAMERA.x,
-  SCENE.OVERVIEW_CAMERA.y,
-  SCENE.OVERVIEW_CAMERA.z,
-);
+const _overviewCam = new THREE.Vector3();
 const _origin = new THREE.Vector3(0, 0, 0);
 
 const _currentBodyPos = new THREE.Vector3();
@@ -27,13 +23,21 @@ const _delta = new THREE.Vector3();
  *  - 'traveling': GSAP spherical arc tween toward the moving target (controls disabled).
  *  - 'following': Camera and OrbitControls target continuously follow the planet's orbit.
  *
+ * Scale modes: switching between compact and true scale re-runs the same
+ * flow — back to that mode's overview, or a fresh flight to the selected body
+ * at its new position. At true scale a flight can span 30,000 u down to
+ * 0.2 u, so the camera radius is interpolated logarithmically; a linear lerp
+ * would hang far away for the whole tween and then snap in.
+ *
  * @param {React.RefObject<import('three-stdlib').OrbitControls>} controlsRef
  */
 export function useCameraControls(controlsRef) {
   const { camera } = useThree();
 
   const selectedPlanetId = usePlanetStore((s) => s.selectedPlanetId);
+  const scaleMode = usePlanetStore((s) => s.settings.scaleMode);
   const setCameraPhase = usePlanetStore((s) => s.setCameraPhase);
+  const trueScale = scaleMode === "true";
 
   // Active tween handle
   const activeTweenRef = useRef(null);
@@ -64,11 +68,13 @@ export function useCameraControls(controlsRef) {
     }
 
     const state = travelStateRef.current;
+    const config = getSceneConfig(scaleMode);
 
     // CASE 1: Deselection -> Return to Overview
     if (!selectedPlanetId) {
       setCameraPhase("traveling");
       controls.enabled = false;
+      releaseDistanceLimits(controls);
 
       state.active = true;
       state.isReturning = true;
@@ -76,14 +82,22 @@ export function useCameraControls(controlsRef) {
       state.proxy.p = 0;
       state.startCamPos.copy(camera.position);
       state.startTargetPos.copy(controls.target);
+      _overviewCam.set(
+        config.OVERVIEW_CAMERA.x,
+        config.OVERVIEW_CAMERA.y,
+        config.OVERVIEW_CAMERA.z,
+      );
+      const overviewCam = _overviewCam.clone();
 
-      const distance = camera.position.distanceTo(_overviewCam);
+      const distance = camera.position.distanceTo(overviewCam);
       const prefersReducedMotion =
         typeof window !== "undefined" &&
         window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       const duration = prefersReducedMotion
         ? 0.02
-        : Math.min(Math.max(1.0 + distance / 45, 1.2), 2.4);
+        : trueScale
+          ? getTravelDuration(distance, true)
+          : Math.min(Math.max(1.0 + distance / 45, 1.2), 2.4);
 
       activeTweenRef.current = gsap.to(state.proxy, {
         p: 1,
@@ -91,15 +105,15 @@ export function useCameraControls(controlsRef) {
         ease: "power3.inOut",
         onUpdate: () => {
           const p = state.proxy.p;
-          camera.position.lerpVectors(state.startCamPos, _overviewCam, p);
+          camera.position.lerpVectors(state.startCamPos, overviewCam, p);
           controls.target.lerpVectors(state.startTargetPos, _origin, p);
           controls.update();
         },
         onComplete: () => {
           state.active = false;
           state.isReturning = false;
-          controls.minDistance = SCENE.MIN_CAMERA_DISTANCE;
-          controls.maxDistance = SCENE.MAX_CAMERA_DISTANCE;
+          controls.minDistance = config.MIN_CAMERA_DISTANCE;
+          controls.maxDistance = config.MAX_CAMERA_DISTANCE;
           controls.enabled = true;
           controls.update();
           setCameraPhase("idle");
@@ -109,15 +123,16 @@ export function useCameraControls(controlsRef) {
     }
 
     // CASE 2: Body selected -> Spherical travel to moving target
-    const body = getBodyById(selectedPlanetId);
+    const body = getScaledBody(selectedPlanetId, scaleMode);
     const entry = bodyRegistry.get(selectedPlanetId);
     if (!body || !entry?.object3D) return;
 
     setCameraPhase("traveling");
     controls.enabled = false;
+    releaseDistanceLimits(controls);
 
     entry.object3D.getWorldPosition(_currentBodyPos);
-    const framing = getBodyFraming(body, _currentBodyPos, camera.position);
+    const framing = getBodyFraming(body, _currentBodyPos, camera.position, trueScale);
 
     // Initial offsets relative to the body
     const startOffset = new THREE.Vector3().subVectors(
@@ -129,6 +144,7 @@ export function useCameraControls(controlsRef) {
 
     state.active = true;
     state.isReturning = false;
+    state.logRadius = trueScale;
     state.targetBody = body;
     state.framing = framing;
     state.proxy.p = 0;
@@ -139,7 +155,7 @@ export function useCameraControls(controlsRef) {
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const duration = prefersReducedMotion
       ? 0.02
-      : getTravelDuration(travelDist);
+      : getTravelDuration(travelDist, trueScale);
 
     activeTweenRef.current = gsap.to(state.proxy, {
       p: 1,
@@ -160,11 +176,13 @@ export function useCameraControls(controlsRef) {
         activeTweenRef.current.kill();
       }
     };
-  }, [selectedPlanetId, camera, controlsRef, setCameraPhase]);
+  }, [selectedPlanetId, scaleMode, trueScale, camera, controlsRef, setCameraPhase]);
 
   useFrame(() => {
     const controls = controlsRef.current;
     if (!controls) return;
+
+    updateClipPlanes(camera, controls, scaleMode);
 
     const phase = usePlanetStore.getState().cameraPhase;
     const state = travelStateRef.current;
@@ -178,11 +196,19 @@ export function useCameraControls(controlsRef) {
       entry.object3D.getWorldPosition(_currentBodyPos);
 
       const p = state.proxy.p;
-      const r = THREE.MathUtils.lerp(
-        state.sphericalStart.radius,
-        state.sphericalEnd.radius,
-        p,
-      );
+      const r = state.logRadius
+        ? Math.exp(
+            THREE.MathUtils.lerp(
+              Math.log(Math.max(state.sphericalStart.radius, 1e-6)),
+              Math.log(Math.max(state.sphericalEnd.radius, 1e-6)),
+              p,
+            ),
+          )
+        : THREE.MathUtils.lerp(
+            state.sphericalStart.radius,
+            state.sphericalEnd.radius,
+            p,
+          );
       const phi = THREE.MathUtils.lerp(
         state.sphericalStart.phi,
         state.sphericalEnd.phi,
@@ -217,4 +243,50 @@ export function useCameraControls(controlsRef) {
       controls.update();
     }
   });
+
+  // Registered after the frame above, so it runs once the camera has moved.
+  useFrame(() => {
+    for (const anchor of cameraAnchors) anchor.position.copy(camera.position);
+  });
+}
+
+/**
+ * Keep the depth range matched to what the camera is looking at.
+ *
+ * Compact mode uses fixed planes. At true scale the camera may sit 0.1 u from
+ * the Moon and still need to draw Neptune's orbit 30,000 u away, so the near
+ * plane follows the distance to the orbit target (the far plane stays fixed),
+ * which keeps close-up surfaces from z-fighting.
+ *
+ * A reversed depth buffer was tried for this and rejected: it dimmed the Sun's
+ * additive corona in both modes.
+ */
+function updateClipPlanes(camera, controls, scaleMode) {
+  const config = getSceneConfig(scaleMode);
+  let near = config.NEAR;
+  if (scaleMode === "true") {
+    const d = camera.position.distanceTo(controls.target);
+    near = THREE.MathUtils.clamp(d * 0.002, config.NEAR, 1);
+  }
+  const far = config.FAR;
+  // Only rebuild the projection when a plane moves meaningfully.
+  if (Math.abs(camera.near - near) > near * 0.1 || camera.far !== far) {
+    camera.near = near;
+    camera.far = far;
+    camera.updateProjectionMatrix();
+  }
+}
+
+/**
+ * Lift the zoom limits for the duration of a flight.
+ *
+ * The tweens call `controls.update()` every frame, and OrbitControls clamps
+ * the camera to [minDistance, maxDistance] even while disabled. Left in place,
+ * the previous body's limits cut every flight short: returning from Mars
+ * stopped at its 45 u max instead of the 110 u overview. Each flight sets the
+ * limits for its destination when it lands.
+ */
+function releaseDistanceLimits(controls) {
+  controls.minDistance = 0;
+  controls.maxDistance = Infinity;
 }

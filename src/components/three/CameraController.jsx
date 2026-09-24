@@ -1,7 +1,8 @@
 import { forwardRef, useImperativeHandle, useRef } from "react";
 import { OrbitControls } from "@react-three/drei";
 
-import { SCENE } from "../../utils/planetUtils.js";
+import { getSceneConfig } from "../../utils/planetUtils.js";
+import { usePlanetStore } from "../../hooks/usePlanetStore.js";
 import { useCameraControls } from "../../hooks/useCameraControls.js";
 import { useIdleDrift } from "../../hooks/useIdleDrift.js";
 
@@ -16,6 +17,7 @@ import { useIdleDrift } from "../../hooks/useIdleDrift.js";
  */
 const CameraController = forwardRef(function CameraController(props, outerRef) {
   const innerRef = useRef(null);
+  const config = getSceneConfig(usePlanetStore((s) => s.settings.scaleMode));
 
   useImperativeHandle(outerRef, () => innerRef.current);
 
@@ -32,8 +34,8 @@ const CameraController = forwardRef(function CameraController(props, outerRef) {
       zoomSpeed={0.8}
       panSpeed={0.6}
       enablePan
-      minDistance={SCENE.MIN_CAMERA_DISTANCE}
-      maxDistance={SCENE.MAX_CAMERA_DISTANCE}
+      minDistance={config.MIN_CAMERA_DISTANCE}
+      maxDistance={config.MAX_CAMERA_DISTANCE}
       minPolarAngle={0.08}
       maxPolarAngle={Math.PI - 0.08}
       {...props}

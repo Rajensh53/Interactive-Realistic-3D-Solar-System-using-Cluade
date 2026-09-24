@@ -7,8 +7,8 @@ import Orbit from "./Orbit.jsx";
 import StarField from "./StarField.jsx";
 import SkyDome from "./SkyDome.jsx";
 import SpaceEnvironment from "./SpaceEnvironment.jsx";
-import { PLANETS } from "../../data/planets.js";
-import { advanceClock } from "../../utils/planetUtils.js";
+import { getScaledPlanets } from "../../data/planets.js";
+import { advanceClock, cameraAnchors } from "../../utils/planetUtils.js";
 import { useTexturesReady } from "../../utils/textureUtils.js";
 import { usePlanetStore } from "../../hooks/usePlanetStore.js";
 import { TIER_CONFIG } from "../../hooks/useQualityTier.js";
@@ -34,6 +34,29 @@ function SimulationClock() {
 }
 
 /**
+ * Holds the backdrop (stars, sky dome, nebulae) on the camera in true-scale
+ * mode. Those shells are 320-860 u across, which at true scale would sit
+ * inside Uranus's orbit; anchored to the camera they read as infinitely far
+ * away wherever the camera goes. Compact mode leaves them at the origin, as
+ * before.
+ */
+function CameraAnchor({ enabled, children }) {
+  const groupRef = useRef(null);
+
+  useEffect(() => {
+    const group = groupRef.current;
+    if (!enabled || !group) return;
+    cameraAnchors.add(group);
+    return () => {
+      cameraAnchors.delete(group);
+      group.position.set(0, 0, 0);
+    };
+  }, [enabled]);
+
+  return <group ref={groupRef}>{children}</group>;
+}
+
+/**
  * The scene graph: the Sun, the eight planets with their moons and orbit
  * traces, and the star field and Milky Way around it all.
  *
@@ -49,6 +72,10 @@ function SolarSystem({ showOrbits, starCount, onReady }) {
   const qualityTier = usePlanetStore((s) => s.qualityTier) || "high";
   const tierConfig = TIER_CONFIG[qualityTier] || TIER_CONFIG.high;
   const renderOrbits = showOrbits ?? orbitsEnabled;
+  const scaleMode = usePlanetStore((s) => s.settings.scaleMode);
+  const trueScale = scaleMode === "true";
+  // Same ids in both layouts, so switching modes updates bodies in place.
+  const planets = getScaledPlanets(scaleMode);
 
   const hasFiredReadyRef = useRef(false);
   useEffect(() => {
@@ -66,22 +93,27 @@ function SolarSystem({ showOrbits, starCount, onReady }) {
           holes cut out of the screen. */}
       <ambientLight intensity={0.08} />
 
-      <Sun />
+      <Sun trueScale={trueScale} />
 
-      {PLANETS.map((body) => (
-        <Planet key={body.id} body={body} />
+      {planets.map((body) => (
+        <Planet key={body.id} body={body} trueScale={trueScale} />
       ))}
 
       {renderOrbits
-        ? PLANETS.map((body) => <Orbit key={`orbit-${body.id}`} body={body} />)
+        ? planets.map((body) => <Orbit key={`orbit-${body.id}`} body={body} />)
         : null}
 
-      <StarField count={starCount ?? tierConfig.starCount} />
-      <SkyDome />
-      <SpaceEnvironment
-        dustCount={tierConfig.dustCount}
-        nebulaShells={tierConfig.nebulaShells}
-      />
+      <CameraAnchor enabled={trueScale}>
+        <StarField count={starCount ?? tierConfig.starCount} />
+        <SkyDome />
+        <SpaceEnvironment
+          dustCount={tierConfig.dustCount}
+          nebulaShells={tierConfig.nebulaShells}
+          // The dust disc is sized for the compact layout; at true scale it
+          // would be a cloud around the camera, so let space be empty.
+          showDust={!trueScale}
+        />
+      </CameraAnchor>
     </>
   );
 }

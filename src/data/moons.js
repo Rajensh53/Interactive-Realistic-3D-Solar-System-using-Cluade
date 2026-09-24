@@ -1,4 +1,4 @@
-import { DEG2RAD } from "../utils/planetUtils.js";
+import { DEG2RAD, TRUE_SCALE } from "../utils/planetUtils.js";
 
 /**
  * Moons Data Layer
@@ -293,21 +293,45 @@ export function getMoonById(id) {
   return MOON_BY_ID.get(id);
 }
 
+/**
+ * The same moons at true scale: real radius and real distance from the parent,
+ * both on the TRUE_SCALE km -> unit factor. Only scene geometry is overridden;
+ * every physical field is shared with MOONS.
+ */
+export const MOONS_TRUE = MOONS.map((m) => ({
+  ...m,
+  radius: (m.diameterKm / 2) * TRUE_SCALE.KM_TO_UNITS,
+  orbitRadius: m.distanceFromParentKm * TRUE_SCALE.KM_TO_UNITS,
+}));
+
 /** parentId -> moons, so <Planet> can render its own satellites. */
-const MOONS_BY_PARENT = MOONS.reduce((map, moon) => {
-  const list = map.get(moon.parentId) ?? [];
-  list.push(moon);
-  map.set(moon.parentId, list);
-  return map;
-}, new Map());
+const groupByParent = (moons) =>
+  moons.reduce((map, moon) => {
+    const list = map.get(moon.parentId) ?? [];
+    list.push(moon);
+    map.set(moon.parentId, list);
+    return map;
+  }, new Map());
+
+const MOONS_BY_PARENT = groupByParent(MOONS);
+const MOONS_TRUE_BY_PARENT = groupByParent(MOONS_TRUE);
+const MOON_TRUE_BY_ID = new Map(MOONS_TRUE.map((m) => [m.id, m]));
 
 const NO_MOONS = Object.freeze([]);
 
 /**
- * Moons orbiting a given planet.
+ * Moons orbiting a given planet, laid out for a scale mode.
  * Returns a shared frozen empty array for moonless planets so callers can use
  * the result directly in a dependency array without churning identities.
+ * @param {string} planetId
+ * @param {"compact"|"true"} [mode]
  */
-export function getMoonsFor(planetId) {
-  return MOONS_BY_PARENT.get(planetId) ?? NO_MOONS;
+export function getMoonsFor(planetId, mode = "compact") {
+  const byParent = mode === "true" ? MOONS_TRUE_BY_PARENT : MOONS_BY_PARENT;
+  return byParent.get(planetId) ?? NO_MOONS;
+}
+
+/** A moon laid out for a scale mode. */
+export function getScaledMoon(id, mode = "compact") {
+  return mode === "true" ? MOON_TRUE_BY_ID.get(id) : MOON_BY_ID.get(id);
 }

@@ -63,6 +63,8 @@ export const usePlanetStore = create((set) => ({
     orbitLines: true,
     labels: true,
     idleDrift: true,
+    /** "compact" (composed for the screen) | "true" (real distances and sizes). */
+    scaleMode: "compact",
   },
 
   toggleSetting: (key) =>

@@ -16,6 +16,8 @@ function Controls() {
 
   const settings = usePlanetStore((s) => s.settings);
   const toggleSetting = usePlanetStore((s) => s.toggleSetting);
+  const setSetting = usePlanetStore((s) => s.setSetting);
+  const trueScale = settings.scaleMode === "true";
 
   const audio = usePlanetStore((s) => s.audio);
   const toggleAudio = usePlanetStore((s) => s.toggleAudio);
@@ -62,10 +64,40 @@ function Controls() {
             </span>
           </div>
         )}
+
+        {trueScale ? (
+          <div className="glass-panel hidden lg:block px-3.5 py-2 rounded-full border border-solar-400/30 text-[10px] text-ink-300 font-sans">
+            Distances and sizes to scale. Use the planet rail or labels to jump.
+          </div>
+        ) : null}
       </div>
 
       {/* Top Right: Utility Toggles */}
       <div className="flex items-center gap-2 pointer-events-auto">
+        {/* Scale Mode: Compact <-> True Scale */}
+        <button
+          onClick={() => setSetting("scaleMode", trueScale ? "compact" : "true")}
+          className={`glass-panel flex items-center gap-1.5 px-3 py-2 rounded-full text-xs font-medium border transition-all cursor-pointer ${
+            trueScale
+              ? "border-solar-400/60 text-solar-300 bg-solar-500/10 shadow-[0_0_12px_rgba(251,191,36,0.3)]"
+              : "border-white/10 text-ink-300 hover:text-ink-100 hover:border-white/20"
+          }`}
+          title={
+            trueScale
+              ? "True Scale: real distances and sizes. Click for the compact view."
+              : "Switch to True Scale: real distances and sizes"
+          }
+          aria-label="Toggle true scale"
+          aria-pressed={trueScale}
+        >
+          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 12h18M3 12l3-3m-3 3l3 3m15-3l-3-3m3 3l-3 3" />
+          </svg>
+          <span className="hidden md:inline font-display text-[10px] uppercase tracking-wider">
+            {trueScale ? "True Scale" : "Compact"}
+          </span>
+        </button>
+
         {/* Toggle Orbit Lines */}
         <button
           onClick={() => toggleSetting("orbitLines")}

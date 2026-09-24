@@ -1,18 +1,21 @@
 import {
   PLANETS,
+  PLANETS_TRUE,
   SUN,
+  SUN_TRUE,
   BODIES,
   EARTH,
   getAdjacentPlanetId,
   getBodyById,
 } from "../src/data/planets.js";
-import { MOONS, getMoonsFor } from "../src/data/moons.js";
+import { MOONS, MOONS_TRUE, getMoonsFor } from "../src/data/moons.js";
 import {
   orbitalPositionAt,
   distanceBetweenKm,
   formatDistanceKm,
   orbitTimeFromPeriod,
   AU_KM,
+  TRUE_SCALE,
 } from "../src/utils/planetUtils.js";
 
 let failures = 0;
@@ -147,6 +150,59 @@ for (const id of ["sun", "mercury", "mars", "jupiter", "neptune"]) {
     `${formatDistanceKm(min)} - ${formatDistanceKm(max)}`,
   );
 }
+
+console.log("\n=== True scale layout ===");
+const near = (a, b) => Math.abs(a - b) <= Math.abs(b) * 1e-9;
+const KM = TRUE_SCALE.KM_TO_UNITS;
+check(
+  "orbits at 1,000 u per AU",
+  PLANETS_TRUE.every((p) => near(p.semiMajor, p.semiMajorAU * 1000)),
+);
+check(
+  "planet radii = diameterKm/2 on the same scale",
+  PLANETS_TRUE.every((p) => near(p.radius, (p.diameterKm / 2) * KM)),
+);
+check("Sun radius 695,700 km (4.65 u)", near(SUN_TRUE.radius, 695_700 * KM), SUN_TRUE.radius.toFixed(3));
+check(
+  "moon radii and orbits from real km",
+  MOONS_TRUE.every(
+    (m) => near(m.radius, (m.diameterKm / 2) * KM) && near(m.orbitRadius, m.distanceFromParentKm * KM),
+  ),
+);
+const parentRadius = (m) => PLANETS_TRUE.find((p) => p.id === m.parentId).radius;
+check(
+  "every moon orbits outside its planet",
+  MOONS_TRUE.every((m) => m.orbitRadius > parentRadius(m)),
+  MOONS_TRUE.map((m) => `${m.id} ${(m.orbitRadius / parentRadius(m)).toFixed(1)}R`).join(", "),
+);
+const mercuryTrue = PLANETS_TRUE[0];
+const mercuryPeri = mercuryTrue.semiMajor * (1 - mercuryTrue.eccentricity);
+check(
+  "Mercury perihelion clear of the Sun",
+  mercuryPeri > SUN_TRUE.radius * 10,
+  `${mercuryPeri.toFixed(0)} u vs Sun ${SUN_TRUE.radius.toFixed(2)} u`,
+);
+for (const p of PLANETS_TRUE) {
+  let min = Infinity;
+  let max = -Infinity;
+  for (let i = 0; i < 400; i++) {
+    orbitalPositionAt(p, (i / 400) * p.orbitTimeSeconds, pos);
+    const r = Math.hypot(pos.x, pos.z);
+    min = Math.min(min, r);
+    max = Math.max(max, r);
+  }
+  const expMin = p.semiMajor * (1 - p.eccentricity);
+  const expMax = p.semiMajor * (1 + p.eccentricity);
+  check(
+    `${p.name.padEnd(8)} true-scale perihelion/aphelion`,
+    Math.abs(min / expMin - 1) < 1e-3 && Math.abs(max / expMax - 1) < 1e-3,
+    `${min.toFixed(0)}-${max.toFixed(0)} u`,
+  );
+}
+check(
+  "compact and true layouts share timing",
+  PLANETS_TRUE.every((p, i) => p.orbitTimeSeconds === PLANETS[i].orbitTimeSeconds),
+);
 
 console.log("\n=== Navigation ===");
 check("next wraps Neptune -> Mercury", getAdjacentPlanetId("neptune", 1) === "mercury");

@@ -1,5 +1,7 @@
-import { memo } from "react";
+import { memo, useEffect, useRef, useState } from "react";
+import { useFrame } from "@react-three/fiber";
 import { Html } from "@react-three/drei";
+import * as THREE from "three";
 
 import { usePlanetStore } from "../../hooks/usePlanetStore.js";
 
@@ -11,17 +13,92 @@ import { usePlanetStore } from "../../hooks/usePlanetStore.js";
  * - Fades in with a smooth glowing badge ONLY when hovered or selected.
  * - Zero 3D WebGL occlusion meshes (which caused black rectangular cutouts).
  * - Styled with sleek Orbitron typography, cyan hover glow, and amber selection accent.
+ *
+ * True scale: bodies are far smaller than a pixel from across the system, so
+ * the Sun's and planets' labels stay visible (they double as click targets).
+ * A moon's label appears only once the camera is within MOON_LABEL_RANGE of
+ * its orbit, otherwise the Galilean moons pile up on top of Jupiter's label.
+ *
+ * Seen from afar, the inner planets crowd around the Sun, so persistent labels
+ * declutter: a label steps aside while it would overlap a label of higher
+ * priority (the Sun, then larger bodies; hovered/selected always win). Labels
+ * also lift a few pixels so the BodyMarker dot beneath each one stays visible.
  */
-function PlanetLabel({ body, yOffset }) {
+const MOON_LABEL_RANGE = 50; // × the moon's orbit radius
+const LABEL_LIFT_PX = 14;
+/** Two labels closer than this (centre to centre, in px) overlap. */
+const OVERLAP_X = 96;
+const OVERLAP_Y = 22;
+const _labelPos = new THREE.Vector3();
+
+/** id -> { x, y, priority, shown }: last frame's screen slot of each label. */
+const labelSlots = new Map();
+
+function overlapsHigherPriority(id, slot) {
+  for (const [otherId, other] of labelSlots) {
+    if (otherId === id || !other.shown || other.priority <= slot.priority) continue;
+    if (Math.abs(other.x - slot.x) < OVERLAP_X && Math.abs(other.y - slot.y) < OVERLAP_Y) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function PlanetLabel({ body, yOffset, trueScale = false }) {
+  const groupRef = useRef(null);
   const showLabels = usePlanetStore((s) => s.settings.labels);
   const isHovered = usePlanetStore((s) => s.hoveredPlanetId === body.id);
   const isSelected = usePlanetStore((s) => s.selectedPlanetId === body.id);
 
-  const active = (isHovered || isSelected) && showLabels;
-  const offset = yOffset ?? Math.max(body.radius * 1.35 + 0.6, 1.4);
+  const isMoon = Boolean(body.parentId);
+  const [moonInRange, setMoonInRange] = useState(false);
+  const [crowded, setCrowded] = useState(false);
+
+  const persistent = trueScale && (!isMoon || moonInRange);
+  const pinned = isHovered || isSelected;
+
+  useEffect(() => () => labelSlots.delete(body.id), [body.id]);
+
+  // True scale only. React state flips only when a threshold is crossed, so
+  // none of this re-renders per frame.
+  useFrame(({ camera, size }) => {
+    if (!trueScale || !groupRef.current) {
+      labelSlots.delete(body.id);
+      return;
+    }
+    groupRef.current.getWorldPosition(_labelPos);
+
+    if (isMoon) {
+      const inRange =
+        camera.position.distanceTo(_labelPos) < body.orbitRadius * MOON_LABEL_RANGE;
+      if (inRange !== moonInRange) setMoonInRange(inRange);
+    }
+
+    if (!persistent && !pinned) {
+      labelSlots.delete(body.id);
+      return;
+    }
+    _labelPos.project(camera);
+    const slot = {
+      x: (_labelPos.x * 0.5 + 0.5) * size.width,
+      y: (-_labelPos.y * 0.5 + 0.5) * size.height,
+      priority: pinned ? Infinity : body.id === "sun" ? 1e9 : body.radius,
+      shown: false,
+    };
+    const hidden = _labelPos.z > 1 || (!pinned && overlapsHigherPriority(body.id, slot));
+    slot.shown = !hidden;
+    labelSlots.set(body.id, slot);
+    if (hidden !== crowded) setCrowded(hidden);
+  });
+
+  const active = (pinned || (persistent && !crowded)) && showLabels;
+  const lift = trueScale ? ` translateY(-${LABEL_LIFT_PX}px)` : "";
+  const offset =
+    yOffset ??
+    (trueScale ? body.radius * 1.6 : Math.max(body.radius * 1.35 + 0.6, 1.4));
 
   return (
-    <group position={[0, offset, 0]}>
+    <group ref={groupRef} position={[0, offset, 0]}>
       <Html
         center
         style={{
@@ -29,7 +106,7 @@ function PlanetLabel({ body, yOffset }) {
           transition:
             "opacity 0.22s cubic-bezier(0.16, 1, 0.3, 1), transform 0.22s cubic-bezier(0.16, 1, 0.3, 1)",
           opacity: active ? 1 : 0,
-          transform: `translate(-50%, -50%) scale(${active ? 1 : 0.85})`,
+          transform: `translate(-50%, -50%)${lift} scale(${active ? 1 : 0.85})`,
           userSelect: "none",
         }}
       >

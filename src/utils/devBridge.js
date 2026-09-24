@@ -5,8 +5,8 @@ import {
   bodyRegistry,
   orbitalPositionAt,
 } from "./planetUtils.js";
-import { PLANETS, BODIES } from "../data/planets.js";
-import { MOONS } from "../data/moons.js";
+import { PLANETS, BODIES, getScaledPlanets } from "../data/planets.js";
+import { MOONS, getScaledMoon } from "../data/moons.js";
 import { getTextureFailures, textureStatus, setAnisotropy } from "./textureUtils.js";
 import { usePlanetStore } from "../hooks/usePlanetStore.js";
 import { TIER_CONFIG } from "../hooks/useQualityTier.js";
@@ -54,7 +54,8 @@ export function installDevBridge() {
      */
     verifyPositions() {
       const t = simulationClock.time;
-      return PLANETS.map((body) => {
+      const mode = usePlanetStore.getState().settings.scaleMode;
+      return getScaledPlanets(mode).map((body) => {
         const entry = bodyRegistry.get(body.id);
         if (!entry?.object3D) return { id: body.id, mounted: false };
 
@@ -98,7 +99,8 @@ export function installDevBridge() {
     /** Moon world positions relative to their parent planet. */
     verifyMoons() {
       const parent = new THREE.Vector3();
-      return MOONS.map((moon) => {
+      const mode = usePlanetStore.getState().settings.scaleMode;
+      return MOONS.map((m) => getScaledMoon(m.id, mode)).map((moon) => {
         const m = bodyRegistry.get(moon.id);
         const p = bodyRegistry.get(moon.parentId);
         if (!m?.object3D || !p?.object3D) return { id: moon.id, mounted: false };
@@ -108,8 +110,8 @@ export function installDevBridge() {
           id: moon.id,
           mounted: true,
           parent: moon.parentId,
-          distanceFromParent: +scratch.distanceTo(parent).toFixed(3),
-          expected: moon.orbitRadius,
+          distanceFromParent: +scratch.distanceTo(parent).toFixed(4),
+          expected: +moon.orbitRadius.toFixed(4),
         };
       });
     },
@@ -227,6 +229,12 @@ export function installDevBridge() {
 
     getSettings() {
       return usePlanetStore.getState().settings;
+    },
+
+    /** "compact" | "true" — switch the scene's layout. */
+    setScaleMode(mode) {
+      usePlanetStore.getState().setSetting("scaleMode", mode);
+      return usePlanetStore.getState().settings.scaleMode;
     },
 
     getCameraPhase() {
