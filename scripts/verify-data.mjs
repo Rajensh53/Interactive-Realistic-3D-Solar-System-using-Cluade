@@ -32,7 +32,9 @@ const REQUIRED = [
   "eccentricity", "initialAngle", "orbitTimeSeconds", "rotationSpeed", "axialTilt",
   "texture", "fallbackColor", "diameterKm", "distanceFromSunKm", "gravity",
   "temperature", "dayLength", "yearLength", "orbitalSpeed", "moonCount",
-  "semiMajorAU", "orbitalPeriodYears", "facts",
+  "semiMajorAU", "orbitalPeriodYears", "facts", "mass", "density",
+  "escapeVelocity", "perihelionKm", "aphelionKm", "orbitalInclinationDeg",
+  "atmosphere", "rings", "discovery",
 ];
 const missing = PLANETS.flatMap((p) =>
   REQUIRED.filter((f) => p[f] === undefined).map((f) => `${p.id}.${f}`),
@@ -40,7 +42,18 @@ const missing = PLANETS.flatMap((p) =>
 check("no missing required fields", missing.length === 0, missing.join(", "));
 
 console.log("\n=== Content quality (no placeholders) ===");
-check("every planet has 4 facts", PLANETS.every((p) => p.facts.length === 4));
+check("every planet has 8 facts", PLANETS.every((p) => p.facts.length === 8));
+check("every moon has at least 7 facts", MOONS.every((m) => m.facts.length >= 7));
+const MOON_REQUIRED = ["mass", "density", "escapeVelocity", "orbitalEccentricity", "rotation", "atmosphere", "discovery"];
+const moonMissing = MOONS.flatMap((m) => MOON_REQUIRED.filter((f) => m[f] === undefined).map((f) => `${m.id}.${f}`));
+check("no missing moon profile fields", moonMissing.length === 0, moonMissing.join(", "));
+// Perihelion / aphelion must agree with a(1-e) and a(1+e) to within 1.5%.
+const apsisOff = PLANETS.filter((p) => {
+  const a = p.semiMajorAU * AU_KM;
+  return Math.abs(p.perihelionKm / (a * (1 - p.eccentricity)) - 1) > 0.015 ||
+    Math.abs(p.aphelionKm / (a * (1 + p.eccentricity)) - 1) > 0.015;
+});
+check("perihelion/aphelion consistent with a and e", apsisOff.length === 0, apsisOff.map((p) => p.id).join(", "));
 check(
   "no empty/placeholder strings",
   PLANETS.every(
@@ -50,7 +63,7 @@ check(
       p.facts.every((f) => f.length > 40 && !/lorem|TODO/i.test(f)),
   ),
 );
-check("Sun has 4 facts + description", SUN.facts.length === 4 && SUN.description.length > 60);
+check("Sun has 9 facts + description", SUN.facts.length === 9 && SUN.description.length > 60);
 
 console.log("\n=== Derived values are finite ===");
 const bad = PLANETS.filter(

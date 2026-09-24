@@ -24,6 +24,12 @@ import { getMoonById, getMoonsFor } from "./moons.js";
  *  atmosphereColor      drives the Fresnel limb glow
  *  hazeColor            a thicker, broader variant of the same shell (Venus)
  *
+ * PROFILE FIELDS (physical, shown in the "Physical & Orbital Profile" list)
+ *  mass, density, escapeVelocity, atmosphere, rings, discovery  display strings
+ *  perihelionKm / aphelionKm      closest / farthest distance from the Sun
+ *  orbitalInclinationDeg          tilt of the orbit to the ecliptic
+ * Sources: NASA Planetary Fact Sheets (NSSDCA), NASA Science, JPL SSD.
+ *
  * SCALE NOTE
  * Sizes and distances use two independent scales. At true scale the Sun would
  * be 109 Earths wide and Neptune 30× further out than Earth — nothing would
@@ -39,8 +45,10 @@ import { getMoonById, getMoonsFor } from "./moons.js";
  * and wrongly render them prograde.
  *
  * MOON COUNTS
- * IAU-confirmed totals as of 2025. The outer planets' counts climb steadily as
- * surveys find more small irregular moons; treat them as a snapshot.
+ * IAU / Minor Planet Center recognised totals as listed by NASA, September
+ * 2026 (Jupiter reached 115 after the March + April 2026 announcements; Saturn
+ * 293). The outer planets' counts climb steadily as surveys find more small
+ * irregular moons; treat them as a snapshot.
  */
 
 const TEX = "/textures/planets";
@@ -63,6 +71,7 @@ export const SUN = {
   // Scene
   radius: 5.0,
   rotationSpeed: 0.004,
+  axialTiltDeg: 7.25, // solar equator vs. the ecliptic
   axialTilt: 7.25 * DEG2RAD,
 
   // Material
@@ -70,22 +79,33 @@ export const SUN = {
   fallbackColor: "#ffcf6b",
 
   // Physical
-  diameterKm: 1_392_700,
+  diameterKm: 1_391_400, // IAU nominal solar radius 695,700 km
   distanceFromSunKm: 0,
   distanceToEarthKm: 149_600_000,
   distanceToGalacticCenter: "~26,000 light-years",
   gravity: "274.0 m/s² (27.9 g)",
-  temperature: "5,500 °C surface · 15.7 million °C core",
-  dayLength: "25 Earth days (equator) to 36 days (poles)",
-  yearLength: "230 million years around the galaxy",
-  orbitalSpeed: "220 km/s (galactic orbit)",
+  temperature: "5,500 °C surface (5,772 K) · ~15 million °C core",
+  dayLength: "~25 Earth days (equator) to ~35 days (poles)",
+  yearLength: "~230 million years around the galaxy",
+  orbitalSpeed: "~230 km/s (galactic orbit)",
   moonCount: null,
+  mass: "1.989 × 10³⁰ kg (333,000 Earths)",
+  density: "1.41 g/cm³",
+  escapeVelocity: "617.7 km/s",
+  luminosity: "3.828 × 10²⁶ W",
+  age: "~4.6 billion years",
+  atmosphere: "~73% hydrogen, ~25% helium (by mass), ~2% heavier elements",
 
   facts: [
     "Average distance to Earth is 149.6 million km (1.00 AU / 8.3 light-minutes), varying between 147.1M km at perihelion and 152.1M km at aphelion.",
-    "It accounts for 99.86% of all the mass in the Solar System — all eight planets together are just a 0.14% fraction.",
+    "It accounts for 99.86% of all the mass in the Solar System — everything else, planets included, makes up just 0.14%.",
     "The core undergoes continuous thermonuclear fusion, converting roughly 600 million tonnes of hydrogen into helium every second.",
-    "Energy generated in the core takes over 100,000 years to diffuse to the surface, but then travels to Earth in just 8 minutes and 20 seconds.",
+    "Energy generated in the core takes tens of thousands to over 100,000 years to reach the surface, but then travels to Earth in just 8 minutes and 20 seconds.",
+      "About 1.3 million Earths could fit inside the Sun's volume, and its diameter is 109 times Earth's.",
+      "The Sun is about 4.6 billion years old—roughly halfway through its ~10-billion-year life as a main-sequence star.",
+      "Its outer atmosphere, the corona, reaches 1–3 million °C—hundreds of times hotter than the visible surface beneath it.",
+      "Solar activity rises and falls in a roughly 11-year cycle; Solar Cycle 25 reached its maximum around late 2024.",
+      "The solar wind streams outward at around 400 km/s, inflating the heliosphere—a bubble Voyager 1 crossed out of in 2012.",
   ],
 };
 
@@ -130,6 +150,15 @@ const PLANET_SOURCE = [
     dayLength: "58.6 Earth days (176d solar day)",
     yearLength: "88 Earth days",
     orbitalSpeed: "47.4 km/s",
+    mass: "3.301 × 10²³ kg (0.055 Earths)",
+    density: "5.43 g/cm³",
+    escapeVelocity: "4.3 km/s",
+    perihelionKm: 46_000_000,
+    aphelionKm: 69_800_000,
+    orbitalInclinationDeg: 7.0,
+    atmosphere: "Near-vacuum exosphere of oxygen, sodium, hydrogen, helium, potassium",
+    rings: "None",
+    discovery: "Known since antiquity",
     moonCount: 0,
 
     facts: [
@@ -137,6 +166,10 @@ const PLANET_SOURCE = [
       "Despite its proximity to the Sun, it is not the hottest planet; lacking an atmosphere, nightside temperatures drop to −180 °C.",
       "Its massive iron-rich core occupies about 85% of the planet's radius, proportionally the largest metallic core of any planet.",
       "Radar observations confirmed that deposits of water ice survive perpetually frozen in deep, permanently shadowed polar craters.",
+      "It has the most eccentric orbit of any planet, swinging between 46 and 70 million km from the Sun.",
+      "Its orbit slowly precesses 43 arcseconds per century more than Newton predicts—an anomaly explained by Einstein's general relativity in 1915.",
+      "As its core cools, Mercury has shrunk by up to ~7 km in radius, wrinkling the crust into long cliffs called lobate scarps.",
+      "Only Mariner 10 (1974–75) and MESSENGER (2011–15) have explored it closely; ESA–JAXA's BepiColombo is due to enter orbit in late 2026.",
     ],
   },
   {
@@ -165,9 +198,18 @@ const PLANET_SOURCE = [
     distanceFromSunKm: 108_200_000,
     gravity: "8.87 m/s² (0.90 g)",
     temperature: "465 °C (870 °F) constant",
-    dayLength: "243 Earth days (retrograde)",
-    yearLength: "225 Earth days",
+    dayLength: "243 Earth days (retrograde; 117d solar day)",
+    yearLength: "224.7 Earth days",
     orbitalSpeed: "35.0 km/s",
+    mass: "4.867 × 10²⁴ kg (0.815 Earths)",
+    density: "5.24 g/cm³",
+    escapeVelocity: "10.4 km/s",
+    perihelionKm: 107_500_000,
+    aphelionKm: 108_900_000,
+    orbitalInclinationDeg: 3.39,
+    atmosphere: "96.5% CO₂, 3.5% N₂ · 92 bar surface pressure",
+    rings: "None",
+    discovery: "Known since antiquity",
     moonCount: 0,
 
     facts: [
@@ -175,6 +217,10 @@ const PLANET_SOURCE = [
       "Surface pressure reaches an immense 92 bars (9.3 MPa), the crushing equivalent of being 900 meters (3,000 feet) underwater on Earth.",
       "Its runaway greenhouse effect traps heat beneath thick carbon dioxide and sulfuric acid clouds, creating a blistering 465 °C surface.",
       "High-altitude cloud decks circle the planet every 4 Earth days (super-rotation), traveling 60 times faster than the planetary surface.",
+      "After the Moon, Venus is the brightest natural object in the night sky, reaching magnitude −4.6.",
+      "Its sulfuric-acid clouds reflect about 75% of incoming sunlight, making it the most reflective planet.",
+      "The Soviet Venera 7 made the first soft landing on another planet in 1970; Venera 13 survived 127 minutes on the surface in 1982.",
+      "Radar has mapped more than 1,600 major volcanoes, and Magellan images suggest some, such as Maat Mons, are still active.",
     ],
   },
   {
@@ -210,13 +256,26 @@ const PLANET_SOURCE = [
     dayLength: "23.93 hours (24h solar)",
     yearLength: "365.25 days",
     orbitalSpeed: "29.8 km/s",
+    mass: "5.972 × 10²⁴ kg",
+    density: "5.51 g/cm³ (densest planet)",
+    escapeVelocity: "11.2 km/s",
+    perihelionKm: 147_100_000,
+    aphelionKm: 152_100_000,
+    orbitalInclinationDeg: 0.0,
+    atmosphere: "78% N₂, 21% O₂, 0.9% Ar · 1.013 bar",
+    rings: "None",
+    discovery: "Our home planet",
     moonCount: 1,
 
     facts: [
       "Earth is the only known astronomical body in the universe confirmed to support life and sustain liquid surface water.",
       "Oceans cover roughly 70.8% of the global surface, holding over 1.3 billion cubic kilometers of liquid water.",
       "The churning liquid iron outer core generates a robust magnetic shield that protects the biosphere from dangerous solar radiation.",
-      "Its rotation is gradually slowing by ~1.7 milliseconds per century due to tidal friction exerted by the Moon's gravitational pull.",
+      "Its day is gradually lengthening by ~1.7 milliseconds per century, mostly due to tidal friction exerted by the Moon's gravitational pull.",
+      "Earth is the densest planet in the Solar System, at 5.51 g/cm³.",
+      "It formed about 4.54 billion years ago, an age measured from meteorites and the oldest mineral grains.",
+      "Earth is closest to the Sun in early January—seasons are caused by its 23.4° axial tilt, not by changing distance.",
+      "Its atmosphere is 78% nitrogen and 21% oxygen, the oxygen produced almost entirely by photosynthetic life.",
     ],
   },
   {
@@ -243,17 +302,30 @@ const PLANET_SOURCE = [
     diameterKm: 6779,
     distanceFromSunKm: 227_900_000,
     gravity: "3.72 m/s² (0.38 g)",
-    temperature: "−140 °C to 20 °C (−63 °C avg)",
-    dayLength: "24.62 hours (1 Sol)",
+    temperature: "−153 °C to 20 °C (−65 °C avg)",
+    dayLength: "24.62 hours (24.66h solar day, 1 sol)",
     yearLength: "687 Earth days (1.88 Earth years)",
     orbitalSpeed: "24.1 km/s",
+    mass: "6.417 × 10²³ kg (0.107 Earths)",
+    density: "3.93 g/cm³",
+    escapeVelocity: "5.0 km/s",
+    perihelionKm: 206_600_000,
+    aphelionKm: 249_200_000,
+    orbitalInclinationDeg: 1.85,
+    atmosphere: "95% CO₂, 2.8% N₂, 2% Ar · ~0.006 bar",
+    rings: "None",
+    discovery: "Known since antiquity",
     moonCount: 2,
 
     facts: [
-      "Hosts Olympus Mons, a shield volcano towering 21.9 km (13.6 miles) high—nearly three times the elevation of Mount Everest.",
+      "Hosts Olympus Mons, a shield volcano towering about 22 km (13.6 miles) above its surroundings—roughly 2.5 times the height of Mount Everest.",
       "The Valles Marineris canyon system cuts across 4,000 km of the Martian equator, reaching depths of 7 km (4x deeper than the Grand Canyon).",
       "Its reddish hue is caused by widespread iron oxide (rust) pervasive throughout the soil and planetary dust storms.",
-      "Mars has two small irregular moons, Phobos and Deimos; tidal forces are drawing Phobos closer until it breaks apart into a ring in ~50 million years.",
+      "Mars has two small irregular moons, Phobos and Deimos; tidal forces are drawing Phobos closer until it breaks apart or crashes in ~30–50 million years.",
+      "Its thin carbon-dioxide atmosphere has a surface pressure less than 1% of Earth's (about 6 millibars).",
+      "The polar caps hold water ice under seasonal dry ice; melted, the south polar cap alone would cover Mars in about 11 m of water.",
+      "Planet-wide dust storms can blanket Mars for months—one in 2018 ended the Opportunity rover's 15-year mission.",
+      "NASA's Ingenuity helicopter made the first powered, controlled flight on another planet in April 2021 and flew 72 times.",
     ],
   },
   {
@@ -281,17 +353,30 @@ const PLANET_SOURCE = [
     diameterKm: 142_984,
     distanceFromSunKm: 778_500_000,
     gravity: "24.79 m/s² (2.53 g)",
-    temperature: "−110 °C at cloud tops",
+    temperature: "−110 °C (1-bar level)",
     dayLength: "9.93 hours (fastest spin)",
-    yearLength: "11.86 Earth years (4,333 days)",
+    yearLength: "11.86 Earth years (4,331 days)",
     orbitalSpeed: "13.1 km/s",
-    moonCount: 95,
+    mass: "1.898 × 10²⁷ kg (317.8 Earths)",
+    density: "1.33 g/cm³",
+    escapeVelocity: "59.5 km/s",
+    perihelionKm: 740_600_000,
+    aphelionKm: 816_400_000,
+    orbitalInclinationDeg: 1.30,
+    atmosphere: "~90% H₂, ~10% He, traces of CH₄, NH₃, H₂O",
+    rings: "4 faint dust rings (halo, main, two gossamer)",
+    discovery: "Known since antiquity",
+    moonCount: 115,
 
     facts: [
-      "Jupiter has 95 officially recognized moons, headlined by the four giant Galilean satellites: Io, Europa, Ganymede, and Callisto.",
+      "Jupiter has 115 officially recognized moons (2026), headlined by the four giant Galilean satellites: Io, Europa, Ganymede, and Callisto.",
       "It is 2.5 times more massive than all the other planets in the Solar System combined (318 times Earth's mass).",
-      "The iconic Great Red Spot is an enormous anticyclonic storm wider than Earth that has raged for at least 190 years.",
+      "The iconic Great Red Spot is an anticyclonic storm wider than Earth that has been observed continuously since 1831—and is slowly shrinking.",
       "Its supersonic 9.9-hour rotation produces a massive equatorial bulge, visibly flattening the polar diameter by over 9,000 km.",
+      "Its magnetosphere is the largest planetary structure in the Solar System—if it were visible, it would look bigger than the full Moon in our sky.",
+      "Jupiter has faint rings of dust, discovered by Voyager 1 in 1979.",
+      "NASA's Juno spacecraft, orbiting since July 2016, found that Jupiter's core is not compact but large and 'fuzzy', partly dissolved.",
+      "Galileo's 1610 discovery of four moons orbiting Jupiter was key evidence that not everything in the sky circles Earth.",
     ],
   },
   {
@@ -323,17 +408,30 @@ const PLANET_SOURCE = [
     diameterKm: 120_536,
     distanceFromSunKm: 1_434_000_000,
     gravity: "10.44 m/s² (1.06 g)",
-    temperature: "−140 °C at cloud tops",
-    dayLength: "10.7 hours",
+    temperature: "−140 °C (1-bar level)",
+    dayLength: "10.56 hours (10h 34m)",
     yearLength: "29.45 Earth years (10,759 days)",
     orbitalSpeed: "9.7 km/s",
-    moonCount: 146,
+    mass: "5.683 × 10²⁶ kg (95.2 Earths)",
+    density: "0.687 g/cm³ (least dense planet)",
+    escapeVelocity: "35.5 km/s",
+    perihelionKm: 1_357_600_000,
+    aphelionKm: 1_506_500_000,
+    orbitalInclinationDeg: 2.49,
+    atmosphere: "~96% H₂, ~3% He, traces of CH₄, NH₃",
+    rings: "7 main rings (D, C, B, A, F, G, E) of water ice",
+    discovery: "Known since antiquity",
+    moonCount: 293,
 
     facts: [
-      "Saturn leads the solar system with 146 officially recognized moons, including Titan, which possesses lakes of liquid methane.",
-      "Its magnificent rings span up to 282,000 km across, yet are paper-thin—averaging only 10 to 30 meters in thickness.",
+      "Saturn leads the Solar System with 293 officially recognized moons (2026)—more than all other planets combined—including Titan, with its seas of liquid methane.",
+      "Its main rings span about 280,000 km across, yet are paper-thin—typically only about 10 meters thick, and rarely more than 1 km.",
       "It is the least dense planet in the Solar System (0.687 g/cm³)—lighter than water, meaning it would float in a sufficiently large ocean.",
-      "A mysterious, persistent six-sided jet stream known as the Hexagon spins over its north pole, spanning nearly 30,000 km across.",
+      "A persistent six-sided jet stream known as the Hexagon spins over its north pole, spanning about 29,000 km across—each side longer than Earth's diameter.",
+      "Its rings are made of countless water-ice particles, from tiny grains to chunks as large as a house.",
+      "Winds in its upper atmosphere reach about 1,800 km/h near the equator.",
+      "Cassini orbited Saturn from 2004 to 2017, ending its mission by plunging into the planet on 15 September 2017.",
+      "Saturn was the most distant planet known until 1781, and is the farthest planet easily seen with the naked eye.",
     ],
   },
   {
@@ -362,17 +460,30 @@ const PLANET_SOURCE = [
     diameterKm: 51_118,
     distanceFromSunKm: 2_871_000_000,
     gravity: "8.87 m/s² (0.90 g)",
-    temperature: "−224 °C to −195 °C (coldest atmosphere)",
-    dayLength: "17.2 hours (retrograde)",
+    temperature: "−195 °C (1-bar level), down to −224 °C",
+    dayLength: "17.24 hours (retrograde)",
     yearLength: "84 Earth years",
     orbitalSpeed: "6.8 km/s",
-    moonCount: 28,
+    mass: "8.681 × 10²⁵ kg (14.5 Earths)",
+    density: "1.27 g/cm³",
+    escapeVelocity: "21.3 km/s",
+    perihelionKm: 2_732_700_000,
+    aphelionKm: 3_001_400_000,
+    orbitalInclinationDeg: 0.77,
+    atmosphere: "83% H₂, 15% He, 2.3% CH₄",
+    rings: "13 known narrow, dark rings",
+    discovery: "William Herschel, 13 March 1781",
+    moonCount: 29,
 
     facts: [
       "Uranus rolls on its side with an extreme axial tilt of 97.8°, causing each pole to spend 42 continuous Earth years in sunlight followed by 42 years of darkness.",
       "It holds the record for the coldest atmospheric temperature measured in the solar system, plunging as low as −224 °C (−371 °F).",
       "It was the first planet discovered with a telescope in modern history, identified by astronomer William Herschel in 1781.",
       "Its pale cyan-aquamarine appearance is caused by atmospheric methane absorbing red light wavelengths and reflecting blue-green back into space.",
+      "Its 13 faint rings were discovered in 1977, when they briefly blocked the light of a background star.",
+      "Voyager 2 is the only spacecraft to have visited Uranus, flying past on 24 January 1986.",
+      "Its magnetic field is tilted about 59° from its spin axis and offset from the planet's centre.",
+      "Its moons are named after characters from Shakespeare and Alexander Pope—such as Titania, Oberon, Miranda and Ariel.",
     ],
   },
   {
@@ -384,7 +495,7 @@ const PLANET_SOURCE = [
 
     radius: 1.45,
     semiMajor: 92,
-    eccentricity: 0.0113,
+    eccentricity: 0.0086,
     initialAngleDeg: 250,
     rotationSpeed: 0.95,
     axialTiltDeg: 28.32,
@@ -399,19 +510,32 @@ const PLANET_SOURCE = [
     orbitalPeriodYears: 164.79,
     semiMajorAU: 30.07,
     diameterKm: 49_528,
-    distanceFromSunKm: 4_495_000_000,
+    distanceFromSunKm: 4_498_000_000,
     gravity: "11.15 m/s² (1.14 g)",
-    temperature: "−201 °C to −218 °C",
-    dayLength: "16.1 hours",
+    temperature: "−201 °C (1-bar level), down to −218 °C",
+    dayLength: "16.11 hours",
     yearLength: "164.8 Earth years",
     orbitalSpeed: "5.4 km/s",
+    mass: "1.024 × 10²⁶ kg (17.1 Earths)",
+    density: "1.64 g/cm³ (densest giant planet)",
+    escapeVelocity: "23.5 km/s",
+    perihelionKm: 4_471_100_000,
+    aphelionKm: 4_558_900_000,
+    orbitalInclinationDeg: 1.77,
+    atmosphere: "80% H₂, 19% He, 1.5% CH₄",
+    rings: "5 main faint rings (Galle, Le Verrier, Lassell, Arago, Adams)",
+    discovery: "Johann Galle, 23 Sept 1846 (predicted by Le Verrier)",
     moonCount: 16,
 
     facts: [
       "Neptune experiences the most violent supersonic winds in the Solar System, clocking speeds exceeding 2,100 km/h (1,300 mph).",
-      "It is the only planet located via mathematical prediction rather than empirical telescope discovery, calculated by Le Verrier in 1846.",
-      "Its giant moon Triton orbits backwards (retrograde) and features active cryovolcanoes shooting plumes of nitrogen ice 8 km into space.",
+      "It was the first planet found by mathematical prediction: Urbain Le Verrier calculated its position and Johann Galle spotted it by telescope in 1846.",
+      "Its largest moon Triton orbits backwards (retrograde)—likely a captured Kuiper Belt object—and Voyager 2 saw geyser plumes rising 8 km high.",
       "Despite being 4.5 billion km from the Sun, Neptune radiates 2.6 times more internal heat than it receives from sunlight.",
+      "Voyager 2 is the only spacecraft to have visited Neptune, flying past on 25 August 1989.",
+      "Voyager 2 imaged the Great Dark Spot, a storm about as wide as Earth; it had vanished by the time Hubble looked in 1994.",
+      "Neptune completed its first full orbit since its discovery in July 2011.",
+      "Its five main rings are named after astronomers linked to its discovery: Galle, Le Verrier, Lassell, Arago and Adams.",
     ],
   },
 ];

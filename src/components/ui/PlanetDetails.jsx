@@ -25,7 +25,35 @@ import {
  * - Curated fun facts with glowing bullet points
  * - Natural Satellites navigation rail for planets with moons (Jupiter, Saturn, Earth)
  * - Parent planet navigation for active moons
+ * - Physical & orbital profile list (mass, density, escape velocity, ...)
  */
+
+/**
+ * Label/value rows for the profile list. Fields a body doesn't carry (e.g.
+ * rings on a moon, luminosity on a planet) are simply skipped.
+ */
+function profileRows(body) {
+  const km = (v) => (v == null ? null : formatDistanceKm(v));
+  const deg = (v) => (v == null ? null : `${v}°`);
+  return [
+    ["Mass", body.mass],
+    ["Mean Density", body.density],
+    ["Escape Velocity", body.escapeVelocity],
+    ["Luminosity", body.luminosity],
+    ["Age", body.age],
+    ["Axial Tilt", deg(body.axialTiltDeg)],
+    ["Rotation", body.rotation],
+    ["Orbital Speed", body.orbitalSpeed],
+    ["Orbital Inclination", deg(body.orbitalInclinationDeg ?? body.inclinationDeg)],
+    ["Orbital Eccentricity", body.eccentricity ?? body.orbitalEccentricity],
+    ["Perihelion", km(body.perihelionKm)],
+    ["Aphelion", km(body.aphelionKm)],
+    [body.id === "sun" ? "Composition" : "Atmosphere", body.atmosphere],
+    ["Rings", body.rings],
+    ["Discovered", body.discovery],
+  ].filter(([, value]) => value != null);
+}
+
 function PlanetDetails() {
   const selectedPlanetId = usePlanetStore((s) => s.selectedPlanetId);
   const selectPlanet = usePlanetStore((s) => s.selectPlanet);
@@ -39,7 +67,8 @@ function PlanetDetails() {
 
   // 4Hz live update for Distance from Earth without triggering React re-renders
   useEffect(() => {
-    if (!body || body.id === "earth") return;
+    // Earth is the reference point; the Moon shows its static mean distance.
+    if (!body || body.id === "earth" || body.parentId === "earth") return;
 
     function updateDistance() {
       if (earthDistSpanRef.current) {
@@ -235,7 +264,11 @@ function PlanetDetails() {
                     ref={earthDistSpanRef}
                     className="text-ink-100 font-bold text-sm mt-1 block font-display tracking-wide"
                   >
-                    {body.id === "earth" ? "0 km (Home Reference)" : "Calculating..."}
+                    {body.id === "earth"
+                      ? "0 km (Home Reference)"
+                      : body.parentId === "earth"
+                        ? `${body.distanceFromParentKm.toLocaleString("en-US")} km (average)`
+                        : "Calculating..."}
                   </span>
                 </div>
 
@@ -252,7 +285,7 @@ function PlanetDetails() {
                 {/* Temperature */}
                 <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5">
                   <span className="text-[10px] text-ink-500 uppercase tracking-wider block font-display">
-                    Surface Temp
+                    Temperature
                   </span>
                   <span className="text-ink-100 font-medium mt-0.5 block font-sans">
                     {body.temperature}
@@ -302,6 +335,25 @@ function PlanetDetails() {
                   </div>
                 ) : null}
               </div>
+            </div>
+
+            {/* Physical & Orbital Profile */}
+            <div>
+              <h3 className="label-caps text-ink-500 mb-3">
+                Physical &amp; Orbital Profile
+              </h3>
+              <dl className="rounded-xl bg-white/[0.03] border border-white/5 divide-y divide-white/5 text-xs">
+                {profileRows(body).map(([label, value]) => (
+                  <div key={label} className="flex items-start justify-between gap-4 px-3 py-2">
+                    <dt className="text-[10px] text-ink-500 uppercase tracking-wider font-display shrink-0 pt-0.5">
+                      {label}
+                    </dt>
+                    <dd className="text-ink-100 font-medium font-sans text-right">
+                      {value}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
             </div>
 
             {/* Fun Facts Section */}
