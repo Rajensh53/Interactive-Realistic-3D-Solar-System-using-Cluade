@@ -31,7 +31,15 @@ export default defineConfig({
               name: "postfx",
               test: /node_modules[\\/](postprocessing|gsap)[\\/]/,
             },
-            { name: "react", test: /node_modules[\\/]react(-dom)?[\\/]/ },
+            // Groups pull in their modules' dependencies by default
+            // (includeDependenciesRecursively), so without a higher priority
+            // the r3f group swallowed React via @react-three/*'s imports and
+            // this group never produced a chunk.
+            {
+              name: "react",
+              test: /node_modules[\\/](react|react-dom|scheduler)[\\/]/,
+              priority: 10,
+            },
           ],
         },
       },
