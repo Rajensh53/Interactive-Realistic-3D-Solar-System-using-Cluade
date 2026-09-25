@@ -283,10 +283,6 @@ export function unregisterBody(id) {
   bodyRegistry.delete(id);
 }
 
-export function getBody(id) {
-  return bodyRegistry.get(id);
-}
-
 /**
  * Groups that should sit on the camera (the sky at "infinity" in true-scale
  * mode). The camera hook moves them *after* it has moved the camera each
@@ -294,14 +290,3 @@ export function getBody(id) {
  * @type {Set<object>}
  */
 export const cameraAnchors = new Set();
-
-/**
- * Write a registered body's world position into a THREE.Vector3-like target.
- * @returns {boolean} false if the body is not currently mounted
- */
-export function getBodyWorldPosition(id, target) {
-  const entry = bodyRegistry.get(id);
-  if (!entry?.object3D) return false;
-  entry.object3D.getWorldPosition(target);
-  return true;
-}
