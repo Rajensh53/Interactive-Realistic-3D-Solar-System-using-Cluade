@@ -17,6 +17,7 @@ import {
   isWebGLAvailable,
   WebGLUnavailable,
   SceneErrorBoundary,
+  ContextLostNotice,
 } from "./components/ui/ErrorFallback.jsx";
 import { SCENE } from "./utils/planetUtils.js";
 import { preloadTextures } from "./utils/textureUtils.js";
@@ -41,6 +42,16 @@ export default function App() {
   useAudioEngine();
 
   const [assetsReady, setAssetsReady] = useState(false);
+  const [contextLost, setContextLost] = useState(false);
+
+  // GPU resets (driver update, OS sleep, too many 3D tabs) drop the WebGL
+  // context. three.js restores everything if the browser gives it back; until
+  // then the canvas is black, so say what happened instead of showing a void.
+  const handleCreated = useCallback(({ gl }) => {
+    const canvas = gl.domElement;
+    canvas.addEventListener("webglcontextlost", () => setContextLost(true));
+    canvas.addEventListener("webglcontextrestored", () => setContextLost(false));
+  }, []);
 
   const handleReady = useCallback(() => {
     setAssetsReady(true);
@@ -113,6 +124,7 @@ export default function App() {
     <main className="relative h-full w-full overflow-hidden bg-space-950 select-none">
       <SceneErrorBoundary>
         <Canvas
+          onCreated={handleCreated}
           dpr={[1, 2]}
           camera={{
             position: [OVERVIEW_CAMERA.x, OVERVIEW_CAMERA.y, OVERVIEW_CAMERA.z],
@@ -146,6 +158,8 @@ export default function App() {
           <PostProcessingEffects />
         </Canvas>
       </SceneErrorBoundary>
+
+      {contextLost ? <ContextLostNotice /> : null}
 
       {/* UI Overlay Layer */}
       <LoadingScreen ready={assetsReady} />

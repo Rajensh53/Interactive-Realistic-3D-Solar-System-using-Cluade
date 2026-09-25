@@ -149,7 +149,7 @@ export function QualityMonitor() {
         // Threshold: > 28ms per frame corresponds to < 35 FPS sustained
         if (avgFrameMs > 28.0) {
           if (currentTier === "high") {
-            console.info(
+            if (import.meta.env.DEV) console.info(
               `[QualityMonitor] Sustained frame time ${avgFrameMs.toFixed(1)}ms (>28ms) detected. Stepping to Medium tier.`,
             );
             usePlanetStore.getState().setQualityTier("medium");
@@ -157,7 +157,7 @@ export function QualityMonitor() {
             buffer.length = 0;
             cooldownRef.current = 300; // 5-second cooldown
           } else if (currentTier === "medium") {
-            console.info(
+            if (import.meta.env.DEV) console.info(
               `[QualityMonitor] Sustained frame time ${avgFrameMs.toFixed(1)}ms (>28ms) detected. Stepping to Low tier.`,
             );
             usePlanetStore.getState().setQualityTier("low");

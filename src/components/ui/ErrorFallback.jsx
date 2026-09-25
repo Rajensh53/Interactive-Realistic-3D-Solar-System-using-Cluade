@@ -1,8 +1,9 @@
 import { Component } from "react";
 
 /**
- * Fallback screens for the two failure modes that would otherwise show the
- * user a black void: no WebGL support, and a crash inside the 3D scene.
+ * Fallback screens for the failure modes that would otherwise show the user a
+ * black void: no WebGL support, a crash inside the 3D scene, and the GPU
+ * context being lost mid-session.
  */
 
 /**
@@ -67,11 +68,15 @@ export function isWebGLAvailable() {
   }
 }
 
-function Shell({ title, children }) {
+function Shell({ title, children, overlay = false }) {
   return (
     <div
       role="alert"
-      className="flex h-full w-full items-center justify-center bg-space-950 p-6"
+      className={
+        overlay
+          ? "fixed inset-0 z-40 flex items-center justify-center bg-space-950/80 p-6 backdrop-blur-sm"
+          : "flex h-full w-full items-center justify-center bg-space-950 p-6"
+      }
     >
       <div className="glass-panel max-w-md rounded-2xl px-8 py-10 text-center">
         <p className="label-caps mb-3">System notice</p>
@@ -96,6 +101,30 @@ export function WebGLUnavailable() {
         Try a recent version of Chrome, Edge, Firefox or Safari, and make sure
         hardware acceleration is enabled in your browser settings.
       </p>
+    </Shell>
+  );
+}
+
+/**
+ * Shown over the scene while the WebGL context is lost (GPU reset, driver
+ * update, too many 3D tabs). three.js rebuilds everything if the browser
+ * restores the context, and the notice then disappears on its own; if it never
+ * comes back, reloading is the way out.
+ */
+export function ContextLostNotice() {
+  return (
+    <Shell title="Graphics were interrupted" overlay>
+      <p>
+        The graphics driver reset, so the 3D view paused. It usually comes back
+        on its own in a moment.
+      </p>
+      <button
+        type="button"
+        onClick={() => window.location.reload()}
+        className="mt-2 rounded-full border border-white/15 px-5 py-2 font-display text-xs tracking-[0.2em] text-ink-100 uppercase transition-colors hover:border-accent-400/60 hover:text-accent-300"
+      >
+        Reload
+      </button>
     </Shell>
   );
 }

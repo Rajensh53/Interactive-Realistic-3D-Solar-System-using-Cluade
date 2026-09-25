@@ -28,7 +28,7 @@ function sliderToSpeed(value) {
   return Math.abs(speed - 1) < 0.06 ? 1 : speed;
 }
 
-export function formatSpeed(speed) {
+function formatSpeed(speed) {
   if (speed < 1) return `${speed.toFixed(2)}×`;
   if (speed < 10) return `${speed.toFixed(1)}×`;
   return `${Math.round(speed)}×`;
