@@ -68,7 +68,15 @@ export const usePlanetStore = create((set) => ({
   clearHovered: (id) =>
     set((state) => (state.hoveredPlanetId === id ? { hoveredPlanetId: null } : state)),
 
-  selectPlanet: (id) => set({ selectedPlanetId: id }),
+  /**
+   * How the current selection was made. "flight" (the default: rail, labels,
+   * clicks, keys) flies the camera to a framed view; "inPlace" (cursor zoom
+   * auto-focus) keeps the camera where it is and only re-centres the body.
+   */
+  selectionSource: "flight",
+
+  selectPlanet: (id, options) =>
+    set({ selectedPlanetId: id, selectionSource: options?.inPlace ? "inPlace" : "flight" }),
 
   clearSelection: () => set({ selectedPlanetId: null }),
 

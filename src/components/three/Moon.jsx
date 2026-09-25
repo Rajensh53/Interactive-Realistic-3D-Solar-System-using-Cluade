@@ -39,7 +39,7 @@ function Moon({ moon, trueScale = false }) {
   );
 
   useLayoutEffect(() => {
-    registerBody(moon.id, orbitRef.current, moon.radius);
+    registerBody(moon.id, orbitRef.current, moon.radius, spinRef.current);
     return () => unregisterBody(moon.id);
   }, [moon.id, moon.radius]);
 

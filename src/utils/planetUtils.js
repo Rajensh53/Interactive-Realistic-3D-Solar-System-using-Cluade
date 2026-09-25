@@ -264,11 +264,19 @@ export function advanceClock(delta) {
    Components register on mount and unregister on unmount.
    --------------------------------------------------------------------------- */
 
-/** @type {Map<string, {id: string, radius: number, object3D: object}>} */
+/** @type {Map<string, {id: string, radius: number, object3D: object, pickMesh?: object}>} */
 export const bodyRegistry = new Map();
 
-export function registerBody(id, object3D, radius) {
-  bodyRegistry.set(id, { id, object3D, radius });
+/**
+ * @param {string} id
+ * @param {object} object3D  the body's positioned group
+ * @param {number} radius    scene radius (active scale mode)
+ * @param {object} [pickMesh] the visible surface mesh, for cursor raycasts;
+ *   raycasting only these keeps picks cheap and ignores the enlarged
+ *   invisible hit proxies, stars and orbit lines
+ */
+export function registerBody(id, object3D, radius, pickMesh) {
+  bodyRegistry.set(id, { id, object3D, radius, pickMesh });
 }
 
 export function unregisterBody(id) {

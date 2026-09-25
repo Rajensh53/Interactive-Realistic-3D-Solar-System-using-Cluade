@@ -58,7 +58,7 @@ function Sun({ trueScale = false }) {
 
   useLayoutEffect(() => {
     if (groupRef.current) {
-      registerBody(SUN.id, groupRef.current, sun.radius);
+      registerBody(SUN.id, groupRef.current, sun.radius, spinRef.current);
     }
     return () => unregisterBody(SUN.id);
   }, [sun.radius]);

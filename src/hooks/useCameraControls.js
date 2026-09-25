@@ -29,6 +29,11 @@ const _delta = new THREE.Vector3();
  * 0.2 u, so the camera radius is interpolated logarithmically; a linear lerp
  * would hang far away for the whole tween and then snap in.
  *
+ * In-place focus: a selection made by cursor-zoom auto-focus
+ * (`selectionSource === "inPlace"`) skips the flight. The camera stays where
+ * the user zoomed it; only the pivot eases onto the body's centre (~0.5 s), so
+ * the body glides to the middle of the screen, then following begins.
+ *
  * @param {React.RefObject<import('three-stdlib').OrbitControls>} controlsRef
  */
 export function useCameraControls(controlsRef) {
@@ -54,7 +59,12 @@ export function useCameraControls(controlsRef) {
     isReturning: false,
     startCamPos: new THREE.Vector3(),
     startTargetPos: new THREE.Vector3(),
+    // In-place focus
+    recentre: false,
+    lastBodyPos: new THREE.Vector3(),
   });
+  const prevSelectedRef = useRef(null);
+  const prevScaleModeRef = useRef(scaleMode);
 
   // Track selected planet changes
   useEffect(() => {
@@ -69,6 +79,18 @@ export function useCameraControls(controlsRef) {
 
     const state = travelStateRef.current;
     const config = getSceneConfig(scaleMode);
+    state.recentre = false;
+
+    // In place only for a fresh selection made by cursor zoom. A scale-mode
+    // switch moves the body far away, so that always flies.
+    const freshSelection = prevSelectedRef.current !== selectedPlanetId;
+    const scaleChanged = prevScaleModeRef.current !== scaleMode;
+    prevSelectedRef.current = selectedPlanetId;
+    prevScaleModeRef.current = scaleMode;
+    const inPlace =
+      freshSelection &&
+      !scaleChanged &&
+      usePlanetStore.getState().selectionSource === "inPlace";
 
     // CASE 1: Deselection -> Return to Overview
     if (!selectedPlanetId) {
@@ -134,6 +156,40 @@ export function useCameraControls(controlsRef) {
     entry.object3D.getWorldPosition(_currentBodyPos);
     const framing = getBodyFraming(body, _currentBodyPos, camera.position, trueScale);
 
+    if (inPlace) {
+      state.active = true;
+      state.isReturning = false;
+      state.recentre = true;
+      state.targetBody = body;
+      state.proxy.p = 0;
+      state.startTargetPos.copy(controls.target);
+      state.lastBodyPos.copy(_currentBodyPos);
+
+      const prefersReducedMotion =
+        typeof window !== "undefined" &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      activeTweenRef.current = gsap.to(state.proxy, {
+        p: 1,
+        duration: prefersReducedMotion ? 0.02 : 0.5,
+        ease: "power2.out",
+        onComplete: () => {
+          state.active = false;
+          state.recentre = false;
+          // Keep the distance the user zoomed to inside the limits.
+          entry.object3D.getWorldPosition(_currentBodyPos);
+          const d = camera.position.distanceTo(_currentBodyPos);
+          controls.minDistance = Math.min(framing.minDistance, d);
+          controls.maxDistance = Math.max(framing.maxDistance, d);
+          controls.enabled = true;
+          controls.update();
+          setCameraPhase("following");
+        },
+      });
+      return () => {
+        if (activeTweenRef.current) activeTweenRef.current.kill();
+      };
+    }
+
     // Initial offsets relative to the body
     const startOffset = new THREE.Vector3().subVectors(
       camera.position,
@@ -186,6 +242,20 @@ export function useCameraControls(controlsRef) {
 
     const phase = usePlanetStore.getState().cameraPhase;
     const state = travelStateRef.current;
+
+    // 0. IN-PLACE FOCUS: camera rides with the body; the pivot eases onto it.
+    if (phase === "traveling" && state.active && state.recentre) {
+      const entry = bodyRegistry.get(selectedPlanetId);
+      if (!entry?.object3D) return;
+      entry.object3D.getWorldPosition(_currentBodyPos);
+      _delta.subVectors(_currentBodyPos, state.lastBodyPos);
+      state.lastBodyPos.copy(_currentBodyPos);
+      camera.position.add(_delta);
+      state.startTargetPos.add(_delta);
+      controls.target.lerpVectors(state.startTargetPos, _currentBodyPos, state.proxy.p);
+      controls.update();
+      return;
+    }
 
     // 1. TRAVELING TO BODY
     if (phase === "traveling" && state.active && !state.isReturning) {
@@ -243,8 +313,15 @@ export function useCameraControls(controlsRef) {
       controls.update();
     }
   });
+}
 
-  // Registered after the frame above, so it runs once the camera has moved.
+/**
+ * Keeps the backdrop (stars, sky dome, nebulae) on the camera in true-scale
+ * mode. Call it after every hook that moves the camera (flights, follow,
+ * cursor zoom) so its frame runs last and the sky never lags a frame behind.
+ */
+export function useCameraAnchors() {
+  const { camera } = useThree();
   useFrame(() => {
     for (const anchor of cameraAnchors) anchor.position.copy(camera.position);
   });

@@ -97,7 +97,7 @@ function Planet({ body, trueScale = false }) {
   }, [body.id]);
 
   useLayoutEffect(() => {
-    registerBody(body.id, orbitRef.current, body.radius);
+    registerBody(body.id, orbitRef.current, body.radius, spinRef.current);
     orbitRef.current.userData.sunDirection = sunDirection;
     return () => unregisterBody(body.id);
   }, [body.id, body.radius, sunDirection]);

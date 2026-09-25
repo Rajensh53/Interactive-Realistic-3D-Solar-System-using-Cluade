@@ -88,6 +88,42 @@ export default function DevProbe() {
         far: camera.far,
       }),
 
+      /** OrbitControls' pivot, unrounded. */
+      pivot: () => controls?.target.toArray() ?? null,
+
+      /**
+       * Where a body sits on screen (CSS px of the canvas), its disc radius in
+       * px, and the camera's distance to its centre.
+       */
+      project: (id) => {
+        const entry = bodyRegistry.get(id);
+        if (!entry?.object3D) return null;
+        const p = new THREE.Vector3();
+        entry.object3D.getWorldPosition(p);
+        const distance = camera.position.distanceTo(p);
+        const v = p.clone().project(camera);
+        const w = gl.domElement.clientWidth;
+        const h = gl.domElement.clientHeight;
+        const tanHalf = Math.tan(THREE.MathUtils.degToRad(camera.fov) / 2);
+        return {
+          x: ((v.x + 1) / 2) * w,
+          y: ((1 - v.y) / 2) * h,
+          behind: v.z > 1,
+          radiusPx: (entry.radius / (distance * tanHalf)) * (h / 2),
+          distance,
+          radius: entry.radius,
+        };
+      },
+
+      /** Screen position of an arbitrary world point. */
+      projectPoint: (x, y, z) => {
+        const v = new THREE.Vector3(x, y, z).project(camera);
+        return {
+          x: ((v.x + 1) / 2) * gl.domElement.clientWidth,
+          y: ((1 - v.y) / 2) * gl.domElement.clientHeight,
+        };
+      },
+
       /**
        * Measure a rendered orbit line straight off its GPU buffer.
        *
