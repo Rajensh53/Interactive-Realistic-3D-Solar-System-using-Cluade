@@ -53,13 +53,13 @@ Toolbar: **Speed**, **Compact / True Scale**, **Orbits**, **Labels**, **About & 
 ## Getting started
 
 ### Requirements
-- **Node.js** 20.19+ or 22.12+ (required by Vite 8)
+- **Node.js** 20.19+ or 22.12+ (required by Vite 8). `.nvmrc` pins 22 LTS, so `nvm use` picks it, and `package.json` declares the same range in `engines`.
 - A modern browser with **WebGL** (Chrome, Edge, Firefox, Safari)
 
 ### Install and run
 
 ```bash
-npm install
+npm ci        # clean install from the lockfile
 npm run dev
 ```
 
@@ -74,6 +74,8 @@ npm run preview   # serves the production build at http://localhost:4173
 
 The build splits the large, rarely changing libraries (`three`, `@react-three/*`, post-processing, React) into separate chunks, so updating the app doesn't invalidate the cached 3D libraries.
 
+**Deploying under a sub-path** (e.g. `https://user.github.io/repo/`): build with `npx vite build --base=/repo/`. Texture URLs follow the base automatically (`src/utils/assetUrl.js`). The full deployment checklist, including cache and security headers, is in [PRODUCTION_AUDIT.md](PRODUCTION_AUDIT.md#4-deploy-checklist-manual-deployment).
+
 ### Scripts
 
 | Script | Purpose |
@@ -81,7 +83,10 @@ The build splits the large, rarely changing libraries (`three`, `@react-three/*`
 | `npm run dev` | Start the Vite dev server with hot reload |
 | `npm run build` | Create an optimised production build in `dist/` |
 | `npm run preview` | Serve the production build locally |
+| `npm run lint` | ESLint (React hooks and fast-refresh rules) |
 | `npm run verify:data` | Validate the astronomical data and scene maths (see [Testing](#testing)) |
+| `npm run test:e2e` | Playwright end-to-end tests: Chromium and WebKit (plus Firefox outside Windows) × desktop, tablet and phone |
+| `npm run test:e2e:chromium` | The same, Chromium only (faster) |
 
 ### Textures
 
@@ -103,12 +108,18 @@ The script is safe to re-run: files already present are skipped. If a texture ev
 ├── vite.config.js
 ├── public/
 │   ├── favicon.svg
+│   ├── og-image.jpg           # 1200×630 social preview
+│   ├── robots.txt
 │   └── textures/
 │       ├── planets/           # 2K surface, cloud, night-light and ring maps
 │       └── environment/       # Milky Way backdrop
 ├── scripts/
 │   ├── fetch-textures.sh      # Download textures (CC BY 4.0)
 │   └── verify-data.mjs        # Data and maths verification suite
+├── e2e/                       # Playwright end-to-end tests
+├── playwright.config.js       # 3 engines × 3 viewports
+├── eslint.config.js
+├── PRODUCTION_AUDIT.md        # Audit findings and deploy checklist
 ├── Plans/                     # Design plans for each major feature
 └── src/
     ├── App.jsx                # Canvas, overlays, global keyboard shortcuts
@@ -188,6 +199,15 @@ The verification suite checks:
 - that the true-scale layout matches the physical data (every moon orbits outside its planet, Mercury stays clear of the Sun);
 - the rotation periods and their ordering;
 - that the orbit and spin clocks run independently and stop when paused.
+
+End-to-end tests drive the real app in a browser:
+
+```bash
+npx playwright install chromium webkit   # once (add firefox on Linux/macOS)
+npm run test:e2e
+```
+
+They cover loading with no console errors, every body and moon showing clean data, the Compact ↔ True Scale toggle (orbits exact, moons outside their planets), pause/speed and all keyboard shortcuts, and the zoom never entering a body. On Windows, Firefox is opt-in (`E2E_FIREFOX=1`) because Smart App Control can block Playwright's unsigned Firefox build.
 
 In development builds, `window.__solar` and `window.__solarRender` expose inspection helpers for automated browser testing, including body positions, orbit and moon verification, scale mode, speed controls, camera and pivot state, and screen projection. They are stripped from production builds.
 

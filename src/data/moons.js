@@ -1,4 +1,5 @@
 import { DEG2RAD, TRUE_SCALE } from "../utils/planetUtils.js";
+import { assetUrl } from "../utils/assetUrl.js";
 
 /**
  * Moons Data Layer
@@ -15,7 +16,7 @@ import { DEG2RAD, TRUE_SCALE } from "../utils/planetUtils.js";
  * Sources: NASA Science moon pages, JPL SSD satellite physical parameters.
  */
 
-const TEX = "/textures/planets";
+const TEX = assetUrl("textures/planets");
 
 const MOON_SOURCE = [
   {

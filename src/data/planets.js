@@ -5,6 +5,7 @@ import {
   rotationSpeedFromPeriod,
   semiMinorFromEccentricity,
 } from "../utils/planetUtils.js";
+import { assetUrl } from "../utils/assetUrl.js";
 import { getMoonById, getMoonsFor, getScaledMoon } from "./moons.js";
 
 /**
@@ -61,7 +62,7 @@ import { getMoonById, getMoonsFor, getScaledMoon } from "./moons.js";
  * irregular moons; treat them as a snapshot.
  */
 
-const TEX = "/textures/planets";
+const TEX = assetUrl("textures/planets");
 
 /** IAU nominal solar radius. */
 const SUN_RADIUS_KM = 695_700;

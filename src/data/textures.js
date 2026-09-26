@@ -13,8 +13,10 @@
  * and is rendered in the credits — see `scripts/fetch-textures.sh`.
  */
 
-const PLANETS = "/textures/planets";
-const ENVIRONMENT_DIR = "/textures/environment";
+import { assetUrl } from "../utils/assetUrl.js";
+
+const PLANETS = assetUrl("textures/planets");
+const ENVIRONMENT_DIR = assetUrl("textures/environment");
 
 export const ENVIRONMENT = {
   milkyWay: `${ENVIRONMENT_DIR}/2k_stars_milky_way.jpg`,
