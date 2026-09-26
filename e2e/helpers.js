@@ -95,7 +95,7 @@ export async function selectBody(page, id) {
   await waitForFocus(page, id);
 }
 
-export const detailsPanel = (page) => page.locator("aside[role=dialog]");
+export const detailsPanel = (page) => page.getByRole("dialog", { name: /details$/ });
 
 /** Text shown in the details panel must not contain broken values. */
 export async function expectCleanPanel(page, name) {

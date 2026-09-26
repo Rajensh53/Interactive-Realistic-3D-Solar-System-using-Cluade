@@ -99,7 +99,7 @@ function PlanetDetails() {
   return (
     <AnimatePresence>
       {body ? (
-        <motion.aside
+        <motion.div
           key={`panel-${body.id}`}
           className="glass-panel fixed top-4 right-4 bottom-4 w-full sm:w-[420px] max-w-[calc(100vw-2rem)] z-30 rounded-2xl flex flex-col overflow-hidden shadow-2xl border border-white/10"
           initial={{ x: 60, opacity: 0 }}
@@ -376,7 +376,7 @@ function PlanetDetails() {
               </div>
             ) : null}
           </div>
-        </motion.aside>
+        </motion.div>
       ) : null}
     </AnimatePresence>
   );

@@ -54,7 +54,11 @@ export default defineConfig({
   expect: { timeout: 20_000 },
   fullyParallel: false,
   workers: process.env.CI ? 1 : 3,
-  retries: process.env.CI ? 1 : 0,
+  // One retry everywhere: WebGL timing under parallel load produces rare
+  // one-off failures (≈2 of 54 in one of four full local runs, not
+  // reproducible in isolation). Retried tests are reported as "flaky", so they
+  // stay visible rather than hidden.
+  retries: 1,
   reporter: [["list"], ["html", { open: "never" }]],
   use: {
     baseURL: `http://localhost:${PORT}`,

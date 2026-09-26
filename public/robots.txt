@@ -1,0 +1,4 @@
+# Allow all crawlers. Once the public URL is known, add:
+# Sitemap: https://YOUR-DOMAIN/sitemap.xml
+User-agent: *
+Allow: /

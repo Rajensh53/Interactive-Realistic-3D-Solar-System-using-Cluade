@@ -1,6 +1,7 @@
 import { Suspense, useCallback, useEffect, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 import { AdaptiveDpr } from "@react-three/drei";
+import { MotionConfig } from "motion/react";
 import PostProcessingEffects from "./components/three/PostProcessingEffects.jsx";
 import * as THREE from "three";
 
@@ -121,53 +122,62 @@ export default function App() {
   }
 
   return (
-    <main className="relative h-full w-full overflow-hidden bg-space-950 select-none">
-      <SceneErrorBoundary>
-        <Canvas
-          onCreated={handleCreated}
-          dpr={[1, 2]}
-          camera={{
-            position: [OVERVIEW_CAMERA.x, OVERVIEW_CAMERA.y, OVERVIEW_CAMERA.z],
-            fov: 60,
-            near: SCENE.NEAR,
-            far: SCENE.FAR,
-          }}
-          gl={{
-            antialias: true,
-            powerPreference: "high-performance",
-            toneMapping: THREE.ACESFilmicToneMapping,
-            toneMappingExposure: 1.0,
-          }}
-          onPointerMissed={() => {
-            usePlanetStore.getState().clearSelection();
-          }}
-        >
-          <color attach="background" args={["#03040a"]} />
+    // reducedMotion="user": Motion's JS-driven UI animations (panel slide-in,
+    // dialog scale, welcome/loading transitions) honour the OS "reduce motion"
+    // setting, like the CSS animations and the camera already do.
+    <MotionConfig reducedMotion="user">
+      <main className="relative h-full w-full overflow-hidden bg-space-950 select-none">
+        {/* The welcome screen's heading goes away once exploring starts; keep a
+          page-level heading for screen-reader navigation. */}
+        <h1 className="sr-only">Interactive 3D Solar System</h1>
 
-          <AdaptiveDpr pixelated={false} />
-          <QualityMonitor />
+        <SceneErrorBoundary>
+          <Canvas
+            onCreated={handleCreated}
+            dpr={[1, 2]}
+            camera={{
+              position: [OVERVIEW_CAMERA.x, OVERVIEW_CAMERA.y, OVERVIEW_CAMERA.z],
+              fov: 60,
+              near: SCENE.NEAR,
+              far: SCENE.FAR,
+            }}
+            gl={{
+              antialias: true,
+              powerPreference: "high-performance",
+              toneMapping: THREE.ACESFilmicToneMapping,
+              toneMappingExposure: 1.0,
+            }}
+            onPointerMissed={() => {
+              usePlanetStore.getState().clearSelection();
+            }}
+          >
+            <color attach="background" args={["#03040a"]} />
 
-          <Suspense fallback={null}>
-            <SolarSystem onReady={handleReady} />
-          </Suspense>
+            <AdaptiveDpr pixelated={false} />
+            <QualityMonitor />
 
-          <CameraController />
+            <Suspense fallback={null}>
+              <SolarSystem onReady={handleReady} />
+            </Suspense>
 
-          {import.meta.env.DEV ? <DevProbe /> : null}
+            <CameraController />
 
-          <PostProcessingEffects />
-        </Canvas>
-      </SceneErrorBoundary>
+            {import.meta.env.DEV ? <DevProbe /> : null}
 
-      {contextLost ? <ContextLostNotice /> : null}
+            <PostProcessingEffects />
+          </Canvas>
+        </SceneErrorBoundary>
 
-      {/* UI Overlay Layer */}
-      <LoadingScreen ready={assetsReady} />
-      <WelcomeOverlay />
-      <Controls />
-      <PlanetDetails />
-      <PlanetNavigation />
-      <AboutModal />
-    </main>
+        {contextLost ? <ContextLostNotice /> : null}
+
+        {/* UI Overlay Layer */}
+        <LoadingScreen ready={assetsReady} />
+        <WelcomeOverlay />
+        <Controls />
+        <PlanetDetails />
+        <PlanetNavigation />
+        <AboutModal />
+      </main>
+    </MotionConfig>
   );
 }
