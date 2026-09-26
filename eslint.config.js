@@ -25,7 +25,16 @@ export default [
     },
   },
   {
-    files: ["scripts/**/*.mjs", "eslint.config.js", "vite.config.js"],
+    files: ["scripts/**/*.mjs", "eslint.config.js", "vite.config.js", "playwright.config.js"],
     languageOptions: { ecmaVersion: "latest", sourceType: "module", globals: globals.node },
+  },
+  {
+    // Tests run in Node; page.evaluate() callbacks run in the browser.
+    files: ["e2e/**/*.js"],
+    languageOptions: {
+      ecmaVersion: "latest",
+      sourceType: "module",
+      globals: { ...globals.node, ...globals.browser },
+    },
   },
 ];
