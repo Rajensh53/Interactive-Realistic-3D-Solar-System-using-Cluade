@@ -1,4 +1,4 @@
-# Allow all crawlers. Once the public URL is known, add:
-# Sitemap: https://YOUR-DOMAIN/sitemap.xml
 User-agent: *
 Allow: /
+
+Sitemap: https://solarix-3d.vercel.app/sitemap.xml

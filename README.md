@@ -110,6 +110,7 @@ The script is safe to re-run: files already present are skipped. If a texture ev
 │   ├── favicon.svg
 │   ├── og-image.jpg           # 1200×630 social preview
 │   ├── robots.txt
+│   ├── sitemap.xml
 │   └── textures/
 │       ├── planets/           # 2K surface, cloud, night-light and ring maps
 │       └── environment/       # Milky Way backdrop
