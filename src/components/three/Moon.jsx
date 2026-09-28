@@ -3,6 +3,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
 import {
+  FRAME_PRIORITY,
   registerBody,
   unregisterBody,
   simulationClock,
@@ -107,7 +108,8 @@ function Moon({ moon, trueScale = false }) {
     if (spinRef.current) {
       spinRef.current.scale.setScalar(currentScaleRef.current);
     }
-  });
+    // Before the camera, which reads this position to follow the moon.
+  }, FRAME_PRIORITY.BODIES);
 
   // At true scale a 0.75 u floor would be a third of the Moon's whole orbit.
   const hitRadius = trueScale ? moon.radius * 2 : Math.max(moon.radius * 1.8, 0.75);

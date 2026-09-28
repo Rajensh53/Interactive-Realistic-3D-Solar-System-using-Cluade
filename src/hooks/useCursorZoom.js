@@ -4,7 +4,7 @@ import * as THREE from "three";
 
 import { usePlanetStore } from "./usePlanetStore.js";
 import { getScaledBody } from "../data/planets.js";
-import { bodyRegistry, getSceneConfig } from "../utils/planetUtils.js";
+import { FRAME_PRIORITY, bodyRegistry, getSceneConfig } from "../utils/planetUtils.js";
 
 /** One mouse-wheel notch, in pixels of deltaY. */
 const NOTCH_PX = 100;
@@ -58,8 +58,8 @@ const _camNext = new THREE.Vector3();
  * Following a body: the body stays the pivot and stays centred; the wheel only
  * changes the distance to it (the user chose "stay locked").
  *
- * Runs in a useFrame registered after useCameraControls, so the follow step
- * has already moved the camera this frame.
+ * Runs at FRAME_PRIORITY.CAMERA, registered after useCameraControls, so the
+ * follow step has already moved the camera this frame.
  *
  * @param {React.RefObject<import('three-stdlib').OrbitControls>} controlsRef
  */
@@ -340,5 +340,5 @@ export function useCursorZoom(controlsRef) {
         store.selectPlanet(id, { inPlace: true });
       }
     }
-  });
+  }, FRAME_PRIORITY.CAMERA);
 }

@@ -223,7 +223,7 @@ export function formatDistanceKm(km) {
    controller (which lives outside <SolarSystem>) without access.
 
    <SolarSystem> is the only writer, advancing it once per frame at
-   useFrame priority -1 so every reader sees the current value, not last
+   FRAME_PRIORITY.CLOCK so every reader sees the current value, not last
    frame's. The maths above stays pure — the clock only holds the value.
    --------------------------------------------------------------------------- */
 
@@ -240,6 +240,30 @@ export const simulationClock = {
   spinScale: 1,
   /** Freezes both clocks without stopping rendering or the camera. */
   paused: false,
+};
+
+/**
+ * useFrame priorities, lowest first. The per-frame order is clock -> bodies ->
+ * camera -> everything else (labels, markers, rings, stars at the default 0).
+ *
+ * Equal priorities run in subscription order, which React mount timing sets:
+ * when textures are still loading, the scene mounts behind its Suspense
+ * fallback, *after* the camera controller, and the camera then followed each
+ * body's previous-frame position. At true scale Earth moves ~2.3 u per frame
+ * against a 0.18 u framing distance, so that lag shook the focused body across
+ * the screen. Explicit priorities make the order independent of mounting.
+ *
+ * All negative: a positive priority would take rendering over from R3F.
+ * drei's OrbitControls also updates at -1; it is a child of the camera
+ * controller, so it always subscribes (and runs) before the camera hooks.
+ */
+export const FRAME_PRIORITY = {
+  /** Advance simulation time. */
+  CLOCK: -3,
+  /** Place every body at the new time. */
+  BODIES: -2,
+  /** Flights, follow, cursor zoom, then the sky anchors, in hook call order. */
+  CAMERA: -1,
 };
 
 /**

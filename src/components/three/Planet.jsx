@@ -14,6 +14,7 @@ import { usePlanetMaterial, useSunDirection } from "../../hooks/usePlanetMateria
 import { usePlanetStore } from "../../hooks/usePlanetStore.js";
 import { createLimbGlowMaterial } from "../../shaders/limbGlow.js";
 import {
+  FRAME_PRIORITY,
   orbitalPositionAt,
   registerBody,
   unregisterBody,
@@ -172,7 +173,8 @@ function Planet({ body, trueScale = false }) {
     if (hoverGlowRef.current) {
       hoverGlowRef.current.visible = newIntensity > 0.005;
     }
-  });
+    // Before the camera, which reads this position to follow the planet.
+  }, FRAME_PRIORITY.BODIES);
 
   // Small planets (Mercury 0.38, Mars 0.53) span 2-3px at overview distance.
   // Hit proxy floor prevents frustrating pixel-hunting. At true scale a fixed

@@ -18,8 +18,9 @@ import { useIdleDrift } from "../../hooks/useIdleDrift.js";
  * - Cursor-directed zoom with dynamic focus (useCursorZoom); OrbitControls'
  *   own wheel/pinch dolly is off, it keeps rotate and pan
  *
- * Hook order matters: each registers a useFrame, and they run in call order —
- * flights/follow move the camera, then the zoom, then the sky anchors.
+ * Hook order matters: each registers a useFrame at FRAME_PRIORITY.CAMERA
+ * (after every body has moved), and they run in call order — flights/follow
+ * move the camera, then the zoom, then the sky anchors.
  */
 const CameraController = forwardRef(function CameraController(props, outerRef) {
   const innerRef = useRef(null);

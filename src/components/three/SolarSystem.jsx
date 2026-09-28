@@ -8,7 +8,12 @@ import StarField from "./StarField.jsx";
 import SkyDome from "./SkyDome.jsx";
 import SpaceEnvironment from "./SpaceEnvironment.jsx";
 import { getScaledPlanets } from "../../data/planets.js";
-import { advanceClock, cameraAnchors, simulationClock } from "../../utils/planetUtils.js";
+import {
+  FRAME_PRIORITY,
+  advanceClock,
+  cameraAnchors,
+  simulationClock,
+} from "../../utils/planetUtils.js";
 import { useTexturesReady } from "../../utils/textureUtils.js";
 import { usePlanetStore } from "../../hooks/usePlanetStore.js";
 import { TIER_CONFIG } from "../../hooks/useQualityTier.js";
@@ -17,11 +22,11 @@ import { TIER_CONFIG } from "../../hooks/useQualityTier.js";
  * Advances the simulation clock once per frame, ahead of everything that reads
  * it.
  *
- * The priority of -1 matters. R3F registers useFrame callbacks in layout-effect
+ * The priority matters. R3F registers useFrame callbacks in layout-effect
  * order, which runs children before parents — so without an explicit priority
- * every body would read the *previous* frame's time. A negative priority sorts
- * this callback first while leaving R3F's automatic rendering intact (only
- * priorities above zero hand rendering over to the caller).
+ * every body would read the *previous* frame's time. FRAME_PRIORITY.CLOCK
+ * sorts this callback first while leaving R3F's automatic rendering intact
+ * (only priorities above zero hand rendering over to the caller).
  */
 function SimulationClock() {
   useFrame((_, delta) => {
@@ -35,7 +40,7 @@ function SimulationClock() {
     // Clamp the delta so a backgrounded tab returning after 30 seconds doesn't
     // teleport every planet through a third of its orbit.
     advanceClock(Math.min(delta, 0.1));
-  }, -1);
+  }, FRAME_PRIORITY.CLOCK);
 
   return null;
 }

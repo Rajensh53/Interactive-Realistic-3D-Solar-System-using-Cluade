@@ -5,7 +5,12 @@ import gsap from "gsap";
 
 import { usePlanetStore } from "./usePlanetStore.js";
 import { getScaledBody } from "../data/planets.js";
-import { bodyRegistry, cameraAnchors, getSceneConfig } from "../utils/planetUtils.js";
+import {
+  FRAME_PRIORITY,
+  bodyRegistry,
+  cameraAnchors,
+  getSceneConfig,
+} from "../utils/planetUtils.js";
 import { getBodyFraming, getTravelDuration } from "../utils/animationUtils.js";
 
 const _overviewCam = new THREE.Vector3();
@@ -312,7 +317,8 @@ export function useCameraControls(controlsRef) {
       camera.position.add(_delta);
       controls.update();
     }
-  });
+    // After the bodies have moved to this frame's time (see FRAME_PRIORITY).
+  }, FRAME_PRIORITY.CAMERA);
 }
 
 /**
@@ -324,7 +330,7 @@ export function useCameraAnchors() {
   const { camera } = useThree();
   useFrame(() => {
     for (const anchor of cameraAnchors) anchor.position.copy(camera.position);
-  });
+  }, FRAME_PRIORITY.CAMERA);
 }
 
 /**
